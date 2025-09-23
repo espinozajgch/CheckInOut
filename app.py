@@ -23,6 +23,7 @@ from src.ui_components import (
     show_missing_file_help,
     responses_view,
     rpe_view,
+    checkin_view,
 )
 
 # Streamlit page config
@@ -48,7 +49,7 @@ with st.sidebar:
     st.write(f"Usuario: {st.session_state['auth']['username']}")
     logout_button()
     st.markdown("---")
-    mode = st.radio("Modo", options=["Registro", "Respuestas", "RPE"], index=0)
+    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
 
 st.title("Wellness & RPE")
 
@@ -89,6 +90,11 @@ if mode == "Respuestas":
 if mode == "RPE":
     df = get_records_df()
     rpe_view(df)
+    st.stop()
+
+if mode == "Check-in":
+    df = get_records_df()
+    checkin_view(df)
     st.stop()
 
 jugadora, tipo, turno = selection_header(jug_df)

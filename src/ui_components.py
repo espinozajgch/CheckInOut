@@ -1,12 +1,12 @@
 from typing import Dict, Tuple
+from datetime import date
 
 import pandas as pd
 import streamlit as st
 
-from .io_files import get_template_bytes
+from .io_files import get_template_bytes, load_jugadoras
 from .schema import validate_checkin, validate_checkout
 from .metrics import compute_rpe_metrics, RPEFilters
-
 
 def selection_header(jug_df: pd.DataFrame):
     st.subheader("Selección inicial")
@@ -286,3 +286,231 @@ def rpe_view(df: pd.DataFrame) -> None:
             pass
     else:
         st.info("No hay datos de Check-out con UA en el rango/criterios seleccionados.")
+
+
+def checkin_view(df: pd.DataFrame) -> None:
+    st.subheader("Respuestas Check-in por fecha (plantel)")
+    if df is None or df.empty:
+        st.info("No hay registros aún.")
+        return
+    # Mantener registros que contengan respuestas de check-in, aunque el tipo sea 'checkOut' tras el upsert
+    d = df.copy()
+    checkin_fields = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
+    existing_fields = [c for c in checkin_fields if c in d.columns]
+    if existing_fields:
+        d = d[d[existing_fields].notna().any(axis=1)]
+    if d.empty:
+        st.info("No hay registros con respuestas de Check-in.")
+        return
+
+    # Date selection (single day) + filters (jugadora/turno)
+    if "fecha" in d.columns and not d["fecha"].isna().all():
+        min_date = d["fecha"].min().date()
+        max_date = d["fecha"].max().date()
+    else:
+        st.info("No hay fechas válidas en los registros.")
+        return
+
+    with st.expander("Filtros", expanded=True):
+        f1, f2, f3, f4 = st.columns([1, 1, 1, 1])
+        with f1:
+            # Default to today if within range; else fall back to latest date with records
+            today = date.today()
+            default_date = today if (min_date <= today <= max_date) else max_date
+            sel_date = st.date_input("Fecha", value=default_date, min_value=min_date, max_value=max_date)
+        with f2:
+            jugadores = (
+                sorted(d["nombre_jugadora"].dropna().astype(str).unique().tolist())
+                if "nombre_jugadora" in d.columns
+                else []
+            )
+            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+        with f3:
+            turnos = ["Turno 1", "Turno 2", "Turno 3"]
+            if "turno" in d.columns:
+                present = d["turno"].dropna().astype(str).unique().tolist()
+                turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
+            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+        with f4:
+            ics_sel = st.multiselect("ICS", options=["ROJO", "AMARILLO", "VERDE"], default=[])
+
+    day_mask = d["fecha"].dt.date == sel_date
+    day_df = d[day_mask].copy()
+    if 'jug_sel' in locals() and jug_sel:
+        day_df = day_df[day_df["nombre_jugadora"].astype(str).isin(jug_sel)]
+    if 'turno_sel' in locals() and turno_sel:
+        day_df = day_df[day_df["turno"].astype(str).isin(turno_sel)]
+    if day_df.empty:
+        st.info("No hay registros para la fecha seleccionada.")
+        return
+
+    # Compute ICS (Indice de Componente Subjetivo)
+    def _val_cat(v: float) -> str:
+        try:
+            v = float(v)
+        except Exception:
+            return ""
+        if v in (1, 2):
+            return "VERDE"
+        if v == 3:
+            return "AMARILLO"
+        if v in (4, 5):
+            return "ROJO"
+        return ""
+
+    def _compute_ics(row: pd.Series) -> str:
+        keys = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
+        # Ensure values
+        if not all(k in row and pd.notna(row[k]) for k in keys):
+            return ""
+        cats = {k: _val_cat(row[k]) for k in keys}
+        greens = sum(1 for c in cats.values() if c == "VERDE")
+        yellows = [k for k, c in cats.items() if c == "AMARILLO"]
+        reds = sum(1 for c in cats.values() if c == "ROJO")
+
+        # ROJO conditions first
+        if reds >= 1:
+            return "ROJO"
+        if len(yellows) >= 3:
+            return "ROJO"
+        if len(yellows) == 2 and ("dolor" in yellows):
+            return "ROJO"
+
+        # VERDE conditions
+        if greens == 5:
+            return "VERDE"
+        if greens == 4 and len(yellows) == 1 and ("dolor" not in yellows):
+            return "VERDE"
+
+        # AMARILLO conditions
+        if len(yellows) == 1:
+            return "AMARILLO"
+        if len(yellows) == 2 and ("dolor" not in yellows):
+            return "AMARILLO"
+
+        # Fallback
+        return "AMARILLO" if len(yellows) > 0 else ""
+
+    d["ICS"] = d.apply(_compute_ics, axis=1)
+
+    # Select and rename columns
+    cols = []
+    def add_if(col):
+        if col in day_df.columns:
+            cols.append(col)
+
+    add_if("nombre_jugadora")
+    add_if("fecha_hora")
+    add_if("periodizacion_tactica")
+    add_if("recuperacion")
+    add_if("fatiga")
+    add_if("sueno")
+    add_if("stress")
+    add_if("dolor")
+    add_if("partes_cuerpo_dolor")
+    add_if("observacion")
+
+    # ensure ICS is aligned to same rows
+    day_df = day_df.merge(d[["fecha_hora", "id_jugadora", "ICS"]], on=["fecha_hora", "id_jugadora"], how="left") if "id_jugadora" in day_df.columns else day_df
+    view = day_df[cols + (["ICS"] if "ICS" in day_df.columns else [])].copy()
+
+    # Apply ICS filter if selected
+    if 'ics_sel' in locals() and ics_sel and "ICS" in view.columns:
+        view = view[view["ICS"].isin(ics_sel)]
+
+    if view.empty:
+        st.info("No hay registros que coincidan con los filtros.")
+        return
+    view = view.rename(columns={
+        "nombre_jugadora": "Jugadora",
+        "fecha_hora": "Fecha",
+        "periodizacion_tactica": "Periodización",
+        "recuperacion": "Recuperación",
+        "fatiga": "Fatiga",
+        "sueno": "Sueño",
+        "stress": "Estrés",
+        "dolor": "Dolor",
+        "partes_cuerpo_dolor": "Partes con dolor",
+        "observacion": "Observación",
+        "ICS": "ICS",
+    })
+
+    # Counters by ICS
+    if "ICS" in view.columns:
+        counts = view["ICS"].value_counts()
+        c_rojo = int(counts.get("ROJO", 0))
+        c_amarillo = int(counts.get("AMARILLO", 0))
+        c_verde = int(counts.get("VERDE", 0))
+        mc1, mc2, mc3 = st.columns(3)
+        with mc1:
+            st.metric("ROJO", value=c_rojo)
+        with mc2:
+            st.metric("AMARILLO", value=c_amarillo)
+        with mc3:
+            st.metric("VERDE", value=c_verde)
+
+    # Sort by ICS severity then Jugadora
+    if "ICS" in view.columns:
+        order_map = {"ROJO": 0, "AMARILLO": 1, "VERDE": 2}
+        view["_ics_order"] = view["ICS"].map(order_map).fillna(3)
+        sort_by = ["_ics_order"] + (["Jugadora"] if "Jugadora" in view.columns else [])
+        view = view.sort_values(sort_by, ascending=[True] + [True] * (len(sort_by) - 1))
+        view = view.drop(columns=["_ics_order"])  # clean temporary column
+    elif "Jugadora" in view.columns:
+        view = view.sort_values("Jugadora")
+
+    # Apply pastel colors to ICS column
+    def _ics_style(val: str) -> str:
+        if val == "VERDE":
+            return "background-color: #d4edda; color: #155724;"
+        if val == "AMARILLO":
+            return "background-color: #fff3cd; color: #856404;"
+        if val == "ROJO":
+            return "background-color: #f8d7da; color: #721c24;"
+        return ""
+
+    if "ICS" in view.columns:
+        styler = view.style.applymap(_ics_style, subset=["ICS"])  # type: ignore
+        st.dataframe(styler, use_container_width=True)
+    else:
+        st.dataframe(view, use_container_width=True)
+
+    # Downloads
+    st.markdown("---")
+    c1, c2 = st.columns(2)
+    export_df = view.copy()
+    # Stringify list column for CSV/JSONL
+    if "Partes con dolor" in export_df.columns:
+        export_df["Partes con dolor"] = export_df["Partes con dolor"].apply(
+            lambda x: "; ".join(map(str, x)) if isinstance(x, (list, tuple)) else ("" if x is None else str(x))
+        )
+    with c1:
+        csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+        st.download_button("Descargar CSV", data=csv_bytes, file_name=f"checkin_{sel_date}.csv", mime="text/csv")
+    with c2:
+        import json
+        records = export_df.where(pd.notnull(export_df), None).to_dict(orient="records")
+        jsonl_str = "\n".join(json.dumps(rec, ensure_ascii=False) for rec in records)
+        st.download_button(
+            "Descargar JSONL",
+            data=jsonl_str.encode("utf-8"),
+            file_name=f"checkin_{sel_date}.jsonl",
+            mime="application/json",
+        )
+
+    # Non-responding players for the selected date (considering optional Jugadora filter)
+    st.markdown("---")
+    st.subheader("Jugadoras que no respondieron")
+    jug_df, jug_err = load_jugadoras()
+    if jug_err or jug_df is None or jug_df.empty:
+        st.info("No se pudo cargar el listado de jugadoras (data/jugadoras.xlsx).")
+    else:
+        roster = jug_df["nombre_jugadora"].astype(str).tolist()
+        if 'jug_sel' in locals() and jug_sel:
+            roster = [j for j in roster if j in jug_sel]
+        responded = set(view["Jugadora"].astype(str).unique().tolist()) if "Jugadora" in view.columns else set()
+        missing = [j for j in roster if j not in responded]
+        if missing:
+            st.dataframe(pd.DataFrame({"Jugadora": missing}).sort_values("Jugadora"), use_container_width=True)
+        else:
+            st.success("Todas las jugadoras seleccionadas respondieron en la fecha.")
