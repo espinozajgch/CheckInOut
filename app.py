@@ -1,5 +1,6 @@
 import streamlit as st
 from src.auth import ensure_session_defaults, login_view, logout_button
+
 from src.io_files import (
     load_jugadoras,
     load_partes_cuerpo,
@@ -15,6 +16,7 @@ from src.schema import (
     validate_checkin,
     validate_checkout,
 )
+
 from src.ui_components import (
     selection_header,
     checkin_form,
@@ -27,14 +29,12 @@ from src.ui_components import (
 )
 
 # Streamlit page config
-st.set_page_config(page_title="Wellness & RPE", page_icon="💪", layout="wide")
-
+st.set_page_config(page_title="Wellness & RPE", page_icon="assets/images/logo.png", layout="wide")
 
 def init_app_state():
     ensure_session_defaults()
     if "flash" not in st.session_state:
         st.session_state["flash"] = None
-
 
 init_app_state()
 
@@ -45,13 +45,22 @@ if not st.session_state["auth"]["is_logged_in"]:
 
 # Top bar with logout
 with st.sidebar:
-    st.markdown("### Entrenador")
-    st.write(f"Usuario: {st.session_state['auth']['username']}")
-    logout_button()
-    st.markdown("---")
+    st.logo("assets/images/logo.png", size="large")
+    st.subheader("Entrenador :material/sports:")
+    
+    #st.write(f"Usuario: {st.session_state['auth']['username']}")
+    st.write(f"Hola **:blue-background[{st.session_state['auth']['username']}]** ")
+    #st.subheader("Modo :material/dashboard:")
     mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
 
-st.title("Wellness & RPE")
+    #st.page_link("pages/registros.py", label="Registro", icon=":material/sports:")
+    #st.page_link("pages/logout.py", label="Salir", icon=":material/logout:")
+    st.divider()
+    #logout_button()
+
+
+#st.title("Wellness & RPE")
+st.header('Wellness & :red[RPE]')
 
 # Show flash message if present (e.g., after saving)
 if st.session_state.get("flash"):
