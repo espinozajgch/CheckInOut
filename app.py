@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+
 from src.auth import ensure_session_defaults, login_view, logout_button
 
 from src.io_files import (
@@ -13,12 +15,10 @@ from src.io_files import (
 )
 from src.schema import (
     new_base_record,
-    validate_checkin,
-    validate_checkout,
+    validate_checkin
 )
 
 from src.ui_components import (
-    selection_header,
     checkin_form,
     checkout_form,
     preview_record,
@@ -56,11 +56,11 @@ with st.sidebar:
     #st.page_link("pages/registros.py", label="Registro", icon=":material/sports:")
     #st.page_link("pages/logout.py", label="Salir", icon=":material/logout:")
     st.divider()
-    #logout_button()
+    logout_button()
 
 
 #st.title("Wellness & RPE")
-st.header('Wellness & :red[RPE]')
+st.header('Wellness & :red[RPE]', divider=True)
 
 # Show flash message if present (e.g., after saving)
 if st.session_state.get("flash"):
@@ -106,7 +106,40 @@ if mode == "Check-in":
     checkin_view(df)
     st.stop()
 
+##############################################################
+
+def selection_header(jug_df: pd.DataFrame):
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        jugadora_opt = None
+        if jug_df is not None and len(jug_df) > 0:
+            names = jug_df["nombre_jugadora"].astype(str).tolist()
+            selected_name = st.selectbox("Jugadora", options=["- Selecciona -"] + names, index=0)
+            if selected_name != "- Selecciona -":
+                row = jug_df[jug_df["nombre_jugadora"].astype(str) == selected_name].iloc[0]
+                jugadora_opt = {
+                    "id_jugadora": row["id_jugadora"],
+                    "nombre_jugadora": row["nombre_jugadora"],
+                }
+        else:
+            st.warning("No hay jugadoras cargadas.")
+    with col2:
+        turno = st.selectbox(
+            "Turno",
+            options=["Turno 1", "Turno 2", "Turno 3"],
+            index=0,
+            #help="Selecciona el turno de la sesión",
+        )
+    with col3:
+        tipo = st.radio("Tipo de registro", options=["Check-in", "Check-out"], horizontal=True)
+
+    return jugadora_opt, tipo, turno
+
+
+# Registro
 jugadora, tipo, turno = selection_header(jug_df)
+#st.divider()
 
 if not jugadora:
     st.info("Selecciona una jugadora para continuar.")
@@ -132,14 +165,22 @@ if existing_today:
 
 is_valid = False
 
+st.divider()
+
 if tipo == "Check-in":
     record, is_valid, validation_msg = checkin_form(record, partes_df)
 else:
     record, is_valid, validation_msg = checkout_form(record)
 
+if not is_valid and validation_msg:
+    st.error(validation_msg)
+
 # Preview and save
-st.markdown("---")
-preview_record(record)
+#st.divider()
+
+if st.checkbox("Previsualización"):
+    preview_record(record)
+    st.caption(f"Datos almacenados en: {DATA_DIR}/registros.jsonl")
 
 save_col1, save_col2 = st.columns([1, 2])
 with save_col1:
@@ -150,13 +191,13 @@ with save_col1:
         if st.button("Guardar", type="primary"):
             # Upsert: si ya existe un registro para la misma jugadora y día, se actualiza.
             upsert_jsonl(record)
+            
             # Set flash message to show after rerun
             st.session_state["flash"] = "Registro guardado/actualizado correctamente en data/registros.jsonl"
             # Clear form state by reloading
             st.rerun()
 
-with save_col2:
-    if not is_valid and validation_msg:
-        st.error(validation_msg)
+# with save_col2:
+#     if not is_valid and validation_msg:
+#         st.error(validation_msg)
 
-st.caption(f"Datos almacenados en: {DATA_DIR}/registros.jsonl")

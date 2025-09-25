@@ -46,21 +46,5 @@ def validate_checkin(record: Dict) -> Tuple[bool, str]:
             return False, "Selecciona al menos una parte del cuerpo con dolor."
     return True, ""
 
-
 essential_checkout_fields = ("minutos_sesion", "rpe")
 
-
-def validate_checkout(record: Dict) -> Tuple[bool, str]:
-    # Minutes > 0
-    minutos = record.get("minutos_sesion")
-    if minutos is None or int(minutos) <= 0:
-        return False, "Los minutos de la sesión deben ser un entero positivo."
-    # RPE 1..10
-    rpe = record.get("rpe")
-    if rpe is None or not (1 <= int(rpe) <= 10):
-        return False, "El RPE debe estar entre 1 y 10."
-    # UA computed
-    ua = record.get("ua")
-    if ua is None:
-        return False, "UA no calculado."
-    return True, ""

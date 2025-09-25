@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from .io_files import get_template_bytes, load_jugadoras
-from .schema import validate_checkin, validate_checkout
+from .schema import validate_checkin
 from .metrics import compute_rpe_metrics, RPEFilters
 
 def selection_header(jug_df: pd.DataFrame):
@@ -37,9 +37,9 @@ def selection_header(jug_df: pd.DataFrame):
 
 
 def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str]:
-    st.subheader("Check-in (preentrenamiento)")
-
+    
     with st.container():
+        st.markdown("#### **Check-in (pre-entrenamiento)**")
         c1, c2, c3, c4, c5 = st.columns(5)
         with c1:
             record["recuperacion"] = st.number_input("Recuperación (1-5)", min_value=1, max_value=5, step=1)
@@ -60,40 +60,56 @@ def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str
         else:
             record["partes_cuerpo_dolor"] = []
 
-    st.markdown("---")
-    st.caption("Campos opcionales")
-
-    colA, colB = st.columns([2, 1])
-    with colA:
-        record["periodizacion_tactica"] = st.slider(
-            "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
-        )
-        record["observacion"] = st.text_area("Observación", value="")
-    with colB:
+        st.divider()
+        st.caption("Campos opcionales")
         record["en_periodo"] = st.checkbox("En periodo")
+        
+        colA, colB = st.columns([2, 1])
+        with colA:
+            record["periodizacion_tactica"] = st.slider(
+                "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
+            )
+            record["observacion"] = st.text_area("Observación", value="")
+        # with colB:
+        #     record["en_periodo"] = st.checkbox("En periodo")
 
-    is_valid, msg = validate_checkin(record)
+        is_valid, msg = validate_checkin(record)
     return record, is_valid, msg
-
 
 def checkout_form(record: Dict) -> Tuple[Dict, bool, str]:
-    st.subheader("Check-out (postentrenamiento)")
+    
+    with st.container():
+        st.markdown("#### **Check-out (post-entrenamiento)**")
 
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        record["minutos_sesion"] = st.number_input("Minutos de la sesión", min_value=0, step=1)
-    with col2:
-        record["rpe"] = st.number_input("RPE (1-10)", min_value=1, max_value=10, step=1)
-    with col3:
-        # Auto-calc UA
-        minutos = int(record.get("minutos_sesion") or 0)
-        rpe = int(record.get("rpe") or 0)
-        record["ua"] = int(rpe * minutos) if minutos > 0 and rpe > 0 else None
-        st.metric("UA (RPE × minutos)", value=record["ua"] if record["ua"] is not None else "-")
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            record["minutos_sesion"] = st.number_input("Minutos de la sesión", min_value=0, step=1)
+        with col2:
+            record["rpe"] = st.number_input("RPE (1-10)", min_value=1, max_value=10, step=1)
+        with col3:
+            # Auto-calc UA
+            minutos = int(record.get("minutos_sesion") or 0)
+            rpe = int(record.get("rpe") or 0)
+            record["ua"] = int(rpe * minutos) if minutos > 0 and rpe > 0 else None
+            st.metric("UA (RPE × minutos)", value=record["ua"] if record["ua"] is not None else "-")
 
-    is_valid, msg = validate_checkout(record)
-    return record, is_valid, msg
+        is_valid, msg = validate_checkout(record)
+        return record, is_valid, msg
 
+def validate_checkout(record: Dict) -> Tuple[bool, str]:
+    # Minutes > 0
+    minutos = record.get("minutos_sesion")
+    if minutos is None or int(minutos) <= 0:
+        return False, "Los minutos de la sesión deben ser un entero positivo."
+    # RPE 1..10
+    rpe = record.get("rpe")
+    if rpe is None or not (1 <= int(rpe) <= 10):
+        return False, "El RPE debe estar entre 1 y 10."
+    # UA computed
+    ua = record.get("ua")
+    if ua is None:
+        return False, "UA no calculado."
+    return True, ""
 
 def preview_record(record: Dict) -> None:
     st.subheader("Previsualización")
