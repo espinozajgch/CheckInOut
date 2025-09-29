@@ -141,7 +141,7 @@ def show_missing_file_help(title: str, description: str, template_type: str) -> 
 
 
 def responses_view(df: pd.DataFrame) -> None:
-    st.subheader("Respuestas registradas")
+    #st.subheader("Respuestas registradas")
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -227,7 +227,7 @@ def responses_view(df: pd.DataFrame) -> None:
 
 
 def rpe_view(df: pd.DataFrame) -> None:
-    st.subheader("RPE / Cargas")
+    #st.subheader("RPE / Cargas")
     if df is None or df.empty:
         st.info("No hay registros aún (se requieren Check-out con UA calculado).")
         return
@@ -530,3 +530,31 @@ def checkin_view(df: pd.DataFrame) -> None:
             st.dataframe(pd.DataFrame({"Jugadora": missing}).sort_values("Jugadora"), use_container_width=True)
         else:
             st.success("Todas las jugadoras seleccionadas respondieron en la fecha.")
+
+def selection_header(jug_df: pd.DataFrame):
+
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        jugadora_opt = None
+        if jug_df is not None and len(jug_df) > 0:
+            names = jug_df["nombre_jugadora"].astype(str).tolist()
+            selected_name = st.selectbox("Jugadora", options=["- Selecciona -"] + names, index=0)
+            if selected_name != "- Selecciona -":
+                row = jug_df[jug_df["nombre_jugadora"].astype(str) == selected_name].iloc[0]
+                jugadora_opt = {
+                    "id_jugadora": row["id_jugadora"],
+                    "nombre_jugadora": row["nombre_jugadora"],
+                }
+        else:
+            st.warning("No hay jugadoras cargadas.")
+    with col2:
+        turno = st.selectbox(
+            "Turno",
+            options=["Turno 1", "Turno 2", "Turno 3"],
+            index=0,
+            #help="Selecciona el turno de la sesión",
+        )
+    with col3:
+        tipo = st.radio("Tipo de registro", options=["Check-in", "Check-out"], horizontal=True)
+
+    return jugadora_opt, tipo, turno

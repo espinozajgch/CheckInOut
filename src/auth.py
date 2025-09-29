@@ -4,6 +4,11 @@ import streamlit as st
 from dotenv import load_dotenv
 from src.util import centered_text
 
+def init_app_state():
+    ensure_session_defaults()
+    if "flash" not in st.session_state:
+        st.session_state["flash"] = None
+
 def ensure_session_defaults() -> None:
     """Initialize session state defaults for authentication and UI."""
     if "auth" not in st.session_state:
@@ -18,9 +23,11 @@ def _get_credentials() -> Tuple[str, str]:
     Environment variables (optional): TRAINER_USER, TRAINER_PASS
     Defaults: admin / admin
     """
-    load_dotenv()
-    user = os.getenv("TRAINER_USER", "admin")
-    pwd = os.getenv("TRAINER_PASS", "admin")
+    #load_dotenv()
+    # user = os.getenv("TRAINER_USER", "admin")
+    # pwd = os.getenv("TRAINER_PASS", "admin")
+    user = st.secrets.db.username
+    pwd = st.secrets.db.password
     return user, pwd
 
 def login_view() -> None:
@@ -31,6 +38,23 @@ def login_view() -> None:
     _, col2, _ = st.columns([2, 1.5, 2])
 
     with col2:
+        st.markdown("""
+            <style>
+                [data-testid="stSidebar"] {
+                    display: none;
+                    visibility: hidden;
+                },
+                [data-testid="st-emotion-cache-169dgwr edtmxes15"] {
+                    display: none;
+                    visibility: hidden;
+                }
+                [data-testid="stBaseButton-headerNoPadding"] {
+                    display: none;
+                    visibility: hidden;
+                }
+            </style>
+        """, unsafe_allow_html=True)
+
         st.header('Login :red[Entrenador]')
 
         with st.form("login_form", clear_on_submit=False):
@@ -51,6 +75,28 @@ def login_view() -> None:
 
 def logout_button() -> None:
     """Render a logout button to clear session."""
-    if st.button("Cerrar sesión"):
+    btnSalir = st.button("Log out", type="tertiary", icon=":material/logout:")
+
+    #if st.button("Cerrar sesión"):
+    if btnSalir:
         st.session_state["auth"] = {"is_logged_in": False, "username": ""}
         st.rerun()
+
+def menu():
+    with st.sidebar:
+        st.logo("assets/images/logo.png", size="large")
+        st.subheader("Entrenador :material/admin_panel_settings:")
+        
+        #st.write(f"Usuario: {st.session_state['auth']['username']}")
+        st.write(f"Hola **:blue-background[{st.session_state['auth']['username'].capitalize()}]** ")
+        st.subheader("Modo :material/dashboard:")
+        #
+        mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
+        
+        st.page_link("app.py", label="Home", icon=":material/home:")
+        st.page_link("pages/registros.py", label="Registro", icon=":material/app_registration:")
+        st.page_link("pages/respuestas.py", label="Respuestas", icon=":material/article_person:")
+        st.page_link("pages/checkin.py", label="Check-in", icon=":material/lab_profile:")
+        logout_button()
+        #st.divider()
+        return mode
