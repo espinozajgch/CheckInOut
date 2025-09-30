@@ -1,8 +1,25 @@
+import streamlit as st
+
 import os
 from typing import Tuple
-import streamlit as st
 from dotenv import load_dotenv
 from src.util import centered_text
+
+import jwt
+import time
+#from streamlit_cookies_manager import EncryptedCookieManager
+from st_cookies_manager import EncryptedCookieManager
+
+# # --- CONFIG JWT ---
+JWT_SECRET = st.secrets.auth.jwt_secret
+JWT_ALGORITHM = st.secrets.auth.algorithm
+JWT_EXP_DELTA_SECONDS = st.secrets.auth.time
+
+# # --- CONFIG COOKIES ---
+cookies = EncryptedCookieManager(prefix="dux", password=JWT_SECRET)
+
+if not cookies.ready():
+    st.stop()
 
 def init_app_state():
     ensure_session_defaults()
@@ -15,6 +32,7 @@ def ensure_session_defaults() -> None:
         st.session_state["auth"] = {
             "is_logged_in": False,
             "username": "",
+            "token": ""
         }
 
 def _get_credentials() -> Tuple[str, str]:
@@ -64,8 +82,15 @@ def login_view() -> None:
 
         if submitted:
             if username == expected_user and password == expected_pass:
+
+                token = create_jwt_token(username)
+                cookies["auth_token"] = token
+                cookies.save()
+                
                 st.session_state["auth"]["is_logged_in"] = True
                 st.session_state["auth"]["username"] = username
+                st.session_state["auth"]["token"] = token
+
                 st.success("Autenticado correctamente")
                 st.rerun()
             else:
@@ -73,14 +98,52 @@ def login_view() -> None:
 
         st.caption("Usa usuario/contraseña proporcionados o variables de entorno TRAINER_USER/TRAINER_PASS")
 
-def logout_button() -> None:
-    """Render a logout button to clear session."""
-    btnSalir = st.button("Log out", type="tertiary", icon=":material/logout:")
+def logout():
+    """Elimina sesión y cookie."""
+    st.session_state["auth"] = {"is_logged_in": False, "username": "", "token": ""}
+    cookies["auth_token"] = ""
+    cookies.save()
 
-    #if st.button("Cerrar sesión"):
-    if btnSalir:
-        st.session_state["auth"] = {"is_logged_in": False, "username": ""}
-        st.rerun()
+    st.rerun()
+
+def create_jwt_token(username: str):
+    """Crea un token JWT firmado con expiración."""
+    payload = {
+        "user": username,
+        "exp": time.time() + JWT_EXP_DELTA_SECONDS,
+        "iat": time.time()
+    }
+    token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return token
+
+def get_current_user():
+    """Valida token de cookie o session_state y devuelve usuario si es válido."""
+    token = st.session_state['auth']['token'] or cookies.get("auth_token")
+    
+    if not token:
+        return None
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        st.session_state["auth"]["is_logged_in"] = True
+        st.session_state["auth"]["username"] = payload["user"]
+        st.session_state["auth"]["token"] = token
+        
+        return payload["user"]
+    except jwt.ExpiredSignatureError:
+        logout()
+        return None
+    except jwt.InvalidTokenError:
+        logout()
+        return None
+
+
+def validate_login():
+    username = get_current_user()
+    if not username:
+        return False
+
+    st.text(username)
+    return username
 
 def menu():
     with st.sidebar:
@@ -89,14 +152,18 @@ def menu():
         
         #st.write(f"Usuario: {st.session_state['auth']['username']}")
         st.write(f"Hola **:blue-background[{st.session_state['auth']['username'].capitalize()}]** ")
+
+        st.page_link("app.py", label="Inicio", icon=":material/home:")
         st.subheader("Modo :material/dashboard:")
         #
-        mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
+        #mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
         
-        st.page_link("app.py", label="Home", icon=":material/home:")
         st.page_link("pages/registros.py", label="Registro", icon=":material/app_registration:")
         st.page_link("pages/respuestas.py", label="Respuestas", icon=":material/article_person:")
         st.page_link("pages/checkin.py", label="Check-in", icon=":material/lab_profile:")
-        logout_button()
-        #st.divider()
-        return mode
+        
+        btnSalir = st.button("Cerrar Sesión", type="tertiary", icon=":material/logout:")
+
+        if btnSalir:
+            logout()
+

@@ -2,40 +2,42 @@ import streamlit as st
 import pandas as pd
 import src.config as config
 
-from src.auth import init_app_state, login_view, menu
+# from src.io_files import (
+#     load_jugadoras,
+#     load_partes_cuerpo,
+#     append_jsonl,
+#     upsert_jsonl,
+#     get_record_for_player_day,
+#     get_record_for_player_day_turno,
+#     get_records_df,
+#     DATA_DIR,
+# )
 
-from src.io_files import (
-    load_jugadoras,
-    load_partes_cuerpo,
-    append_jsonl,
-    upsert_jsonl,
-    get_record_for_player_day,
-    get_record_for_player_day_turno,
-    get_records_df,
-    DATA_DIR,
-)
+# from src.schema import (
+#     new_base_record,
+#     validate_checkin
+# )
 
-from src.schema import (
-    new_base_record,
-    validate_checkin
-)
-
-from src.ui_components import (
-    checkin_form,
-    checkout_form,
-    preview_record,
-    show_missing_file_help,
-    responses_view,
-    rpe_view,
-    checkin_view,
-    selection_header,
-)
+# from src.ui_components import (
+#     checkin_form,
+#     checkout_form,
+#     preview_record,
+#     show_missing_file_help,
+#     responses_view,
+#     rpe_view,
+#     checkin_view,
+#     selection_header,
+# )
 
 config.init_config()
 
-#st.set_page_config(page_title="Wellness & RPE", page_icon="assets/images/logo.png", layout="wide")
+from src.auth import init_app_state, login_view, menu, validate_login
 
 init_app_state()
+validate_login()
+
+# if not cookies.ready():
+#     st.stop()
 
 # Authentication gate
 if not st.session_state["auth"]["is_logged_in"]:
@@ -43,7 +45,7 @@ if not st.session_state["auth"]["is_logged_in"]:
     st.stop()
 
 st.header('Wellness & :red[RPE]', divider=True)
-mode = menu()
+menu()
 
 # # Top bar with logout
 # with st.sidebar:
