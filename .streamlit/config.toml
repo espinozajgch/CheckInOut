@@ -1,0 +1,16 @@
+[theme]
+# Base light theme with white backgrounds
+base = "light"
+primaryColor = "#800000"         # Grana / Maroon for accents and primary actions
+backgroundColor = "#ffffff"       # White main background
+secondaryBackgroundColor = "#f7f7f7"  # Light grey panels (sidebar, containers)
+textColor = "#000000"             # Black text for readability
+
+# Optional: tweak general UI
+[client]
+showErrorDetails = true
+
+[server]
+headless = true
+enableCORS = false
+enableXsrfProtection = true

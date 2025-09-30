@@ -24,7 +24,9 @@ from src.ui_components import (
     responses_view,
     rpe_view,
     checkin_view,
+    individual_report_view,
 )
+from src.synthetic import generate_synthetic_rpe, generate_synthetic_checkin
 
 # Streamlit page config
 st.set_page_config(page_title="Wellness & RPE", page_icon="💪", layout="wide")
@@ -49,7 +51,42 @@ with st.sidebar:
     st.write(f"Usuario: {st.session_state['auth']['username']}")
     logout_button()
     st.markdown("---")
-    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
+    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE", "Reporte individual"], index=0)
+    with st.expander("Datos de ejemplo (RPE)"):
+        st.caption("Genera 30 días de respuestas de RPE sintéticas para todas las jugadoras. Se creará un backup de data/registros.jsonl antes de escribir.")
+        if st.button("Generar RPE sintético (30 días)"):
+            try:
+                summary = generate_synthetic_rpe(days=30, seed=42)
+                created = summary.get("created")
+                skipped = summary.get("skipped")
+                backup = summary.get("backup")
+                target = summary.get("target")
+                st.session_state["flash"] = (
+                    f"Datos sintéticos creados: {created}. Omitidos: {skipped}. "
+                    + (f"Backup: {backup}. " if backup else "")
+                    + f"Archivo: {target}"
+                )
+            except Exception as e:
+                st.session_state["flash"] = f"Error generando datos sintéticos: {e}"
+            st.rerun()
+
+    with st.expander("Datos de ejemplo (Check-in)"):
+        st.caption("Genera 30 días de respuestas de Check-in sintéticas para todas las jugadoras. Se creará un backup de data/registros.jsonl antes de escribir.")
+        if st.button("Generar Check-in sintético (30 días)"):
+            try:
+                summary = generate_synthetic_checkin(days=30, seed=123)
+                created = summary.get("created")
+                skipped = summary.get("skipped")
+                backup = summary.get("backup")
+                target = summary.get("target")
+                st.session_state["flash"] = (
+                    f"Check-in sintético creado: {created}. Omitidos: {skipped}. "
+                    + (f"Backup: {backup}. " if backup else "")
+                    + f"Archivo: {target}"
+                )
+            except Exception as e:
+                st.session_state["flash"] = f"Error generando datos sintéticos de Check-in: {e}"
+            st.rerun()
 
 st.title("Wellness & RPE")
 
@@ -95,6 +132,11 @@ if mode == "RPE":
 if mode == "Check-in":
     df = get_records_df()
     checkin_view(df)
+    st.stop()
+
+if mode == "Reporte individual":
+    df = get_records_df()
+    individual_report_view(df)
     st.stop()
 
 jugadora, tipo, turno = selection_header(jug_df)
