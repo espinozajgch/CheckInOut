@@ -1,6 +1,37 @@
 import streamlit as st
+<<<<<<< HEAD
 import pandas as pd
 import src.config as config
+=======
+from src.auth import ensure_session_defaults, login_view, logout_button
+from src.io_files import (
+    load_jugadoras,
+    load_partes_cuerpo,
+    append_jsonl,
+    upsert_jsonl,
+    get_record_for_player_day,
+    get_record_for_player_day_turno,
+    get_records_df,
+    DATA_DIR,
+)
+from src.schema import (
+    new_base_record,
+    validate_checkin,
+    validate_checkout,
+)
+from src.ui_components import (
+    selection_header,
+    checkin_form,
+    checkout_form,
+    preview_record,
+    show_missing_file_help,
+    responses_view,
+    rpe_view,
+    checkin_view,
+    individual_report_view,
+)
+from src.synthetic import generate_synthetic_rpe, generate_synthetic_checkin
+>>>>>>> origin
 
 # from src.io_files import (
 #     load_jugadoras,
@@ -46,6 +77,49 @@ if not st.session_state["auth"]["is_logged_in"]:
 
 st.header('Wellness & :red[RPE]', divider=True)
 menu()
+
+# Top bar with logout
+with st.sidebar:
+    st.markdown("### Entrenador")
+    st.write(f"Usuario: {st.session_state['auth']['username']}")
+    logout_button()
+    st.markdown("---")
+    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE", "Reporte individual"], index=0)
+    with st.expander("Datos de ejemplo (RPE)"):
+        st.caption("Genera 30 días de respuestas de RPE sintéticas para todas las jugadoras. Se creará un backup de data/registros.jsonl antes de escribir.")
+        if st.button("Generar RPE sintético (30 días)"):
+            try:
+                summary = generate_synthetic_rpe(days=30, seed=42)
+                created = summary.get("created")
+                skipped = summary.get("skipped")
+                backup = summary.get("backup")
+                target = summary.get("target")
+                st.session_state["flash"] = (
+                    f"Datos sintéticos creados: {created}. Omitidos: {skipped}. "
+                    + (f"Backup: {backup}. " if backup else "")
+                    + f"Archivo: {target}"
+                )
+            except Exception as e:
+                st.session_state["flash"] = f"Error generando datos sintéticos: {e}"
+            st.rerun()
+
+    with st.expander("Datos de ejemplo (Check-in)"):
+        st.caption("Genera 30 días de respuestas de Check-in sintéticas para todas las jugadoras. Se creará un backup de data/registros.jsonl antes de escribir.")
+        if st.button("Generar Check-in sintético (30 días)"):
+            try:
+                summary = generate_synthetic_checkin(days=30, seed=123)
+                created = summary.get("created")
+                skipped = summary.get("skipped")
+                backup = summary.get("backup")
+                target = summary.get("target")
+                st.session_state["flash"] = (
+                    f"Check-in sintético creado: {created}. Omitidos: {skipped}. "
+                    + (f"Backup: {backup}. " if backup else "")
+                    + f"Archivo: {target}"
+                )
+            except Exception as e:
+                st.session_state["flash"] = f"Error generando datos sintéticos de Check-in: {e}"
+            st.rerun()
 
 # # Top bar with logout
 # with st.sidebar:
@@ -106,7 +180,10 @@ menu()
 #     checkin_view(df)
 #     st.stop()
 
-# ##############################################################
+if mode == "Reporte individual":
+    df = get_records_df()
+    individual_report_view(df)
+    st.stop()
 
 # # Registro
 # jugadora, tipo, turno = selection_header(jug_df)
