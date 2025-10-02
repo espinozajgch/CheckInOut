@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
-import src.config as config
 from src.io_files import get_records_df
 from src.ui_components import checkin_view
 
+import src.config as config
 config.init_config()
+
 from src.auth import init_app_state, login_view, menu, validate_login
 init_app_state()
 

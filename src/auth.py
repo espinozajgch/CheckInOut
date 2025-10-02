@@ -16,7 +16,7 @@ JWT_ALGORITHM = st.secrets.auth.algorithm
 JWT_EXP_DELTA_SECONDS = st.secrets.auth.time
 
 # # --- CONFIG COOKIES ---
-cookies = EncryptedCookieManager(prefix="dux", password=JWT_SECRET)
+cookies = EncryptedCookieManager(prefix="dux_check_in_out", password=JWT_SECRET)
 
 if not cookies.ready():
     st.stop()
