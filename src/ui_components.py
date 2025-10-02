@@ -330,11 +330,12 @@ def rpe_view(df: pd.DataFrame) -> None:
     with k4:
         st.metric("Variabilidad semana (std)", value=(f"{metrics['variabilidad_semana']:.2f}" if metrics["variabilidad_semana"] is not None else "-"))
 
-    st.markdown("---")
+    st.divider()
     st.caption("Cargas diarias (UA total por día)")
     daily = metrics.get("daily_table")
     if isinstance(daily, pd.DataFrame) and not daily.empty:
         st.dataframe(daily.sort_values("fecha_dia"), use_container_width=True)
+        st.divider()
         try:
             chart_df = daily.copy()
             chart_df = chart_df.rename(columns={"fecha_dia": "Fecha", "ua_total": "UA"})
@@ -346,7 +347,7 @@ def rpe_view(df: pd.DataFrame) -> None:
         st.info("No hay datos de Check-out con UA en el rango/criterios seleccionados.")
 
     # --- Gráficas por jugadora ---
-    st.markdown("---")
+    st.divider()
     st.subheader("Gráficas por jugadora")
     # Controles de visualización y orden
     ctrl1, ctrl2, ctrl3 = st.columns([1, 1, 1])
@@ -890,7 +891,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
         st.metric("RPE medio", f"{rpe_media:.2f}" if rpe_media is not None else "-")
 
     # Gráficas
-    st.markdown("---")
+    st.divider()
     st.subheader("Evolución en el tiempo")
     # Preparar dataframe temporal
     t = d.copy()
