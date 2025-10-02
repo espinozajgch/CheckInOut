@@ -1,4 +1,7 @@
 import streamlit as st
+import os
+import shutil
+from datetime import datetime
 from src.auth import ensure_session_defaults, login_view, logout_button
 from src.io_files import (
     load_jugadoras,
@@ -25,8 +28,9 @@ from src.ui_components import (
     rpe_view,
     checkin_view,
     individual_report_view,
+    risk_view,
 )
-from src.synthetic import generate_synthetic_rpe, generate_synthetic_checkin
+from src.synthetic import generate_synthetic_full
 
 # Streamlit page config
 st.set_page_config(page_title="Wellness & RPE", page_icon="💪", layout="wide")
@@ -51,41 +55,46 @@ with st.sidebar:
     st.write(f"Usuario: {st.session_state['auth']['username']}")
     logout_button()
     st.markdown("---")
-    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE", "Reporte individual"], index=0)
-    with st.expander("Datos de ejemplo (RPE)"):
-        st.caption("Genera 30 días de respuestas de RPE sintéticas para todas las jugadoras. Se creará un backup de data/registros.jsonl antes de escribir.")
-        if st.button("Generar RPE sintético (30 días)"):
+    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE", "Riesgo", "Reporte individual"], index=0)
+    with st.expander("Generar datos aleatorios (30 días)"):
+        st.caption("Genera datos de Check-in y Check-out para todas las jugadoras durante 30 días. La periodización táctica avanzará de forma cronológica. Se creará un backup de data/registros.jsonl antes de escribir.")
+        if st.button("Generar datos completos (30 días)"):
             try:
-                summary = generate_synthetic_rpe(days=30, seed=42)
-                created = summary.get("created")
-                skipped = summary.get("skipped")
+                summary = generate_synthetic_full(days=30, seed=777)
                 backup = summary.get("backup")
                 target = summary.get("target")
+                ci = summary.get("created_checkin")
+                co = summary.get("created_checkout")
+                total = summary.get("total_upserts")
                 st.session_state["flash"] = (
-                    f"Datos sintéticos creados: {created}. Omitidos: {skipped}. "
+                    f"Datos generados: Check-in {ci}, Check-out {co}, Total upserts {total}. "
                     + (f"Backup: {backup}. " if backup else "")
                     + f"Archivo: {target}"
                 )
             except Exception as e:
-                st.session_state["flash"] = f"Error generando datos sintéticos: {e}"
+                st.session_state["flash"] = f"Error generando datos completos: {e}"
             st.rerun()
 
-    with st.expander("Datos de ejemplo (Check-in)"):
-        st.caption("Genera 30 días de respuestas de Check-in sintéticas para todas las jugadoras. Se creará un backup de data/registros.jsonl antes de escribir.")
-        if st.button("Generar Check-in sintético (30 días)"):
+    with st.expander("Administrar datos"):
+        st.caption("Respaldar y vaciar el archivo de registros si necesitas empezar desde cero.")
+        if st.button("Vaciar registros (backup y reset)"):
             try:
-                summary = generate_synthetic_checkin(days=30, seed=123)
-                created = summary.get("created")
-                skipped = summary.get("skipped")
-                backup = summary.get("backup")
-                target = summary.get("target")
+                # Backup si existe
+                from src.io_files import DATA_DIR, REGISTROS_JSONL
+                os.makedirs(DATA_DIR, exist_ok=True)
+                backup_path = None
+                if os.path.exists(REGISTROS_JSONL):
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    backup_path = os.path.join(DATA_DIR, f"registros.backup_{ts}.jsonl")
+                    shutil.copy(REGISTROS_JSONL, backup_path)
+                # Vaciar archivo
+                with open(REGISTROS_JSONL, "w", encoding="utf-8") as f:
+                    pass
                 st.session_state["flash"] = (
-                    f"Check-in sintético creado: {created}. Omitidos: {skipped}. "
-                    + (f"Backup: {backup}. " if backup else "")
-                    + f"Archivo: {target}"
+                    (f"Backup: {backup_path}. " if backup_path else "") + "Registros vaciados correctamente."
                 )
             except Exception as e:
-                st.session_state["flash"] = f"Error generando datos sintéticos de Check-in: {e}"
+                st.session_state["flash"] = f"Error al vaciar registros: {e}"
             st.rerun()
 
 st.title("Wellness & RPE")
@@ -132,6 +141,11 @@ if mode == "RPE":
 if mode == "Check-in":
     df = get_records_df()
     checkin_view(df)
+    st.stop()
+
+if mode == "Riesgo":
+    df = get_records_df()
+    risk_view(df)
     st.stop()
 
 if mode == "Reporte individual":
