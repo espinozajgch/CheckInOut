@@ -1,6 +1,9 @@
 import streamlit as st
-from src.auth import init_app_state, login_view, menu
 import src.config as config
+config.init_config()
+
+from src.auth import init_app_state, login_view, menu
+init_app_state()
 
 from src.ui_components import (
     checkin_form,
@@ -29,17 +32,14 @@ from src.io_files import (
     DATA_DIR,
 )
 
-config.init_config()
-init_app_state()
-
 # Authentication gate
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
 
-st.header(':red[Registro]', divider=True)
+st.header('Registro :red[:material/check_in_out:] ', divider=True)
 
-mode = menu()
+menu()
 
 # Load reference data
 jug_df, jug_error = load_jugadoras()
@@ -77,9 +77,11 @@ else:
     record, is_valid, validation_msg = checkout_form(record)
 
 # Preview and save
-st.markdown("---")
+st.divider()
 
-preview_record(record)
+if st.checkbox("Previsualización"):
+    preview_record(record)
+    st.caption(f"Datos almacenados en: {DATA_DIR}/registros.jsonl")
 
 save_col1, save_col2 = st.columns([1, 2])
 with save_col1:
@@ -95,8 +97,8 @@ with save_col1:
             # Clear form state by reloading
             st.rerun()
 
-with save_col2:
-    if not is_valid and validation_msg:
-        st.error(validation_msg)
 
-st.caption(f"Datos almacenados en: {DATA_DIR}/registros.jsonl")
+if not is_valid and validation_msg:
+    st.error(validation_msg)
+
+#st.caption(f"Datos almacenados en: {DATA_DIR}/registros.jsonl")

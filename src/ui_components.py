@@ -19,9 +19,12 @@ def selection_header(jug_df: pd.DataFrame):
     with col1:
         jugadora_opt = None
         if jug_df is not None and len(jug_df) > 0:
-            names = jug_df["nombre_jugadora"].astype(str).tolist()
-            selected_name = st.selectbox("Jugadora", options=["- Selecciona -"] + names, index=0)
-            if selected_name != "- Selecciona -":
+            names = sorted(jug_df["nombre_jugadora"].astype(str).tolist())
+            selected_name = st.selectbox("Jugadora", names, index=None, placeholder="Seleccione una jugadora")
+            
+            #st.text(f"selected_name {selected_name}")
+            #options=["- Selecciona -"] + 
+            if selected_name :
                 row = jug_df[jug_df["nombre_jugadora"].astype(str) == selected_name].iloc[0]
                 jugadora_opt = {
                     "id_jugadora": row["id_jugadora"],
@@ -47,15 +50,15 @@ def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str
         st.markdown("#### **Check-in (pre-entrenamiento)**")
         c1, c2, c3, c4, c5 = st.columns(5)
         with c1:
-            record["recuperacion"] = st.number_input("Recuperación (1-5)", min_value=1, max_value=5, step=1)
+            record["recuperacion"] = st.number_input("Recuperación :red[(1-5)]", min_value=1, max_value=5, step=1)
         with c2:
-            record["fatiga"] = st.number_input("Fatiga (1-5)", min_value=1, max_value=5, step=1)
+            record["fatiga"] = st.number_input("Fatiga :red[(1-5)]", min_value=1, max_value=5, step=1)
         with c3:
-            record["sueno"] = st.number_input("Sueño (1-5)", min_value=1, max_value=5, step=1)
+            record["sueno"] = st.number_input("Sueño :red[(1-5)]", min_value=1, max_value=5, step=1)
         with c4:
-            record["stress"] = st.number_input("Estrés (1-5)", min_value=1, max_value=5, step=1, key="stress_input")
+            record["stress"] = st.number_input("Estrés :red[(1-5)]", min_value=1, max_value=5, step=1, key="stress_input")
         with c5:
-            record["dolor"] = st.number_input("Dolor (1-5)", min_value=1, max_value=5, step=1)
+            record["dolor"] = st.number_input("Dolor :red[(1-5)]", min_value=1, max_value=5, step=1)
 
         if int(record.get("dolor", 0)) > 1:
             opciones = partes_df["parte"].astype(str).tolist() if partes_df is not None else []
@@ -74,7 +77,8 @@ def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str
             record["periodizacion_tactica"] = st.slider(
                 "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
             )
-            record["observacion"] = st.text_area("Observación", value="")
+
+        record["observacion"] = st.text_area("Observación", value="")
         # with colB:
         #     record["en_periodo"] = st.checkbox("En periodo")
 
@@ -86,17 +90,17 @@ def checkout_form(record: Dict) -> Tuple[Dict, bool, str]:
     with st.container():
         st.markdown("#### **Check-out (post-entrenamiento)**")
 
-        col1, col2, col3 = st.columns([1, 1, 1])
+        col1, col2, col3,_, _ = st.columns([.5, .5, .5, 1,1])
         with col1:
             record["minutos_sesion"] = st.number_input("Minutos de la sesión", min_value=0, step=1)
         with col2:
-            record["rpe"] = st.number_input("RPE (1-10)", min_value=1, max_value=10, step=1)
+            record["rpe"] = st.number_input("RPE :red[(1-10)]", min_value=1, max_value=10, step=1)
         with col3:
             # Auto-calc UA
             minutos = int(record.get("minutos_sesion") or 0)
             rpe = int(record.get("rpe") or 0)
             record["ua"] = int(rpe * minutos) if minutos > 0 and rpe > 0 else None
-            st.metric("UA (RPE × minutos)", value=record["ua"] if record["ua"] is not None else "-")
+            st.metric("UA (RPE x minutos)", value=record["ua"] if record["ua"] is not None else "-")
 
         is_valid, msg = validate_checkout(record)
         return record, is_valid, msg
@@ -117,7 +121,7 @@ def validate_checkout(record: Dict) -> Tuple[bool, str]:
     return True, ""
 
 def preview_record(record: Dict) -> None:
-    st.subheader("Previsualización")
+    #st.subheader("Previsualización")
     # Header with key fields
     jug = record.get("nombre_jugadora", "-")
     fecha = record.get("fecha_hora", "-")
@@ -244,32 +248,33 @@ def rpe_view(df: pd.DataFrame) -> None:
     else:
         min_date = max_date = None
 
-    with st.expander("Filtros", expanded=True):
-        c1, c2, c3 = st.columns([1, 1, 1])
-        with c1:
-            jugadores = (
-                sorted(df["nombre_jugadora"].dropna().astype(str).unique().tolist())
-                if "nombre_jugadora" in df.columns
-                else []
+    #with st.expander("Filtros", expanded=True):
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c1:
+        jugadores = (
+            sorted(df["nombre_jugadora"].dropna().astype(str).unique().tolist())
+            if "nombre_jugadora" in df.columns
+            else []
+        )
+        jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+    with c2:
+        turnos = ["Turno 1", "Turno 2", "Turno 3"]
+        if "turno" in df.columns:
+            present = df["turno"].dropna().astype(str).unique().tolist()
+            turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
+        turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+    with c3:
+        if min_date and max_date:
+            start, end = st.date_input(
+                "Rango de fechas", value=(min_date, max_date), min_value=min_date, max_value=max_date
             )
-            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
-        with c2:
-            turnos = ["Turno 1", "Turno 2", "Turno 3"]
-            if "turno" in df.columns:
-                present = df["turno"].dropna().astype(str).unique().tolist()
-                turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
-            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
-        with c3:
-            if min_date and max_date:
-                start, end = st.date_input(
-                    "Rango de fechas", value=(min_date, max_date), min_value=min_date, max_value=max_date
-                )
-            else:
-                start, end = None, None
+        else:
+            start, end = None, None
 
     flt = RPEFilters(jugadores=jug_sel or None, turnos=turno_sel or None, start=start, end=end)
     metrics = compute_rpe_metrics(df, flt)
 
+    st.subheader("Resumen")
     # KPIs
     k1, k2, k3, k4 = st.columns(4)
     with k1:
@@ -312,16 +317,17 @@ def rpe_view(df: pd.DataFrame) -> None:
             end_day = daily_tbl["fecha_dia"].max()
         if end_day is not None and "fecha_dia" in d_min.columns:
             minutos_dia = d_min.loc[d_min["fecha_dia"] == end_day, "minutos_sesion"].sum()
-            st.metric("Minutos día", value=(f"{minutos_dia:.0f}" if pd.notna(minutos_dia) else "-"))
+            with k1:
+                st.metric("Minutos día", value=(f"{minutos_dia:.0f}" if pd.notna(minutos_dia) else "-"))
     except Exception:
         pass
 
-    c5, c6, c7 = st.columns(3)
-    with c5:
+    #c5, c6, c7 = st.columns(3)
+    with k2:
         st.metric("ACWR (aguda:crónica)", value=(f"{metrics['acwr']:.2f}" if metrics["acwr"] is not None else "-"))
-    with c6:
+    with k3:
         st.metric("Adaptación", value=(f"{metrics['adaptacion']:.2f}" if metrics["adaptacion"] is not None else "-"))
-    with c7:
+    with k4:
         st.metric("Variabilidad semana (std)", value=(f"{metrics['variabilidad_semana']:.2f}" if metrics["variabilidad_semana"] is not None else "-"))
 
     st.markdown("---")
@@ -528,7 +534,7 @@ def rpe_view(df: pd.DataFrame) -> None:
 
 
 def checkin_view(df: pd.DataFrame) -> None:
-    st.subheader("Respuestas Check-in por fecha (plantel)")
+    
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -682,11 +688,11 @@ def checkin_view(df: pd.DataFrame) -> None:
         c_verde = int(counts.get("VERDE", 0))
         mc1, mc2, mc3 = st.columns(3)
         with mc1:
-            st.metric("ROJO", value=c_rojo)
+            st.metric("Rojo", value=c_rojo, border=True)
         with mc2:
-            st.metric("AMARILLO", value=c_amarillo)
+            st.metric("Amarillo", value=c_amarillo, border=True)
         with mc3:
-            st.metric("VERDE", value=c_verde)
+            st.metric("Verde", value=c_verde, border=True)
 
     # Sort by ICS severity then Jugadora
     if "ICS" in view.columns:
@@ -808,7 +814,7 @@ def checkin_view(df: pd.DataFrame) -> None:
             st.success("Todas las jugadoras seleccionadas respondieron en la fecha.")
 
 def individual_report_view(df: pd.DataFrame) -> None:
-    st.subheader("Reporte individual")
+    #st.subheader("Reporte individual")
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -852,20 +858,27 @@ def individual_report_view(df: pd.DataFrame) -> None:
         return
 
     # Resumen rápido
-    st.markdown("---")
+    #st.divider("---")
     st.subheader("Resumen")
     # Check-in: medias por métrica 1..5
     checkin_fields = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
     means = {k: float(pd.to_numeric(d[k], errors="coerce").mean()) if k in d.columns else None for k in checkin_fields}
-    colA, colB, colC, colD, colE = st.columns(5)
-    colA.metric("Recuperación media", f"{means.get('recuperacion', 0):.2f}" if means.get('recuperacion') is not None else "-")
-    colB.metric("Fatiga media", f"{means.get('fatiga', 0):.2f}" if means.get('fatiga') is not None else "-")
-    colC.metric("Sueño medio", f"{means.get('sueno', 0):.2f}" if means.get('sueno') is not None else "-")
-    colD.metric("Estrés medio", f"{means.get('stress', 0):.2f}" if means.get('stress') is not None else "-")
-    colE.metric("Dolor medio", f"{means.get('dolor', 0):.2f}" if means.get('dolor') is not None else "-")
+    
+    #colA, colB, colC, colD, colE = st.columns(5)
+    m_cols = st.columns(5)
+    with m_cols[0]:
+        st.metric("Recuperación media", f"{means.get('recuperacion', 0):.2f}" if means.get('recuperacion') is not None else "-")
+    with m_cols[1]:
+        st.metric("Fatiga media", f"{means.get('fatiga', 0):.2f}" if means.get('fatiga') is not None else "-")
+    with m_cols[2]:
+        st.metric("Sueño medio", f"{means.get('sueno', 0):.2f}" if means.get('sueno') is not None else "-")
+    with m_cols[3]:
+        st.metric("Estrés medio", f"{means.get('stress', 0):.2f}" if means.get('stress') is not None else "-")
+    with m_cols[4]:
+        st.metric("Dolor medio", f"{means.get('dolor', 0):.2f}" if means.get('dolor') is not None else "-")
 
     # Check-out: totales / medias
-    m_cols = st.columns(3)
+    #m_cols = st.columns(3)
     with m_cols[0]:
         ua_total = float(pd.to_numeric(d.get("ua"), errors="coerce").sum()) if "ua" in d.columns else None
         st.metric("UA total", f"{ua_total:.0f}" if ua_total is not None else "-")

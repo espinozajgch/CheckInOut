@@ -1,6 +1,9 @@
 import streamlit as st
-from src.auth import init_app_state, login_view, menu
 import src.config as config
+config.init_config()
+
+from src.auth import init_app_state, login_view, menu
+init_app_state()
 
 from src.ui_components import (
     checkin_form,
@@ -29,17 +32,16 @@ from src.io_files import (
     DATA_DIR,
 )
 
-config.init_config()
-init_app_state()
-
 # Authentication gate
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
 
-st.header('RPE / :red[Cargas]', divider=True)
 
-mode = menu()
+st.header(':red[Check-In]', divider=True)
+
+menu()
 
 df = get_records_df()
-rpe_view(df)
+checkin_view(df)
+

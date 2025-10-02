@@ -14,6 +14,7 @@ from src.ui_components import (
     rpe_view,
     checkin_view,
     selection_header,
+    individual_report_view
 )
 
 from src.schema import (
@@ -37,9 +38,9 @@ if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
 
-st.header(':red[Respuestas]', divider=True)
+st.header('Reporte :red[Individual]', divider=True)
 
 menu()
 
 df = get_records_df()
-responses_view(df)
+individual_report_view(df)

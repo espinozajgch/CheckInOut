@@ -142,12 +142,12 @@ def validate_login():
     if not username:
         return False
 
-    st.text(username)
+    #st.text(username)
     return username
 
 def menu():
     with st.sidebar:
-        st.logo("assets/images/logo.png", size="large")
+        st.logo("assets/images/banner.png", size="large")
         st.subheader("Entrenador :material/admin_panel_settings:")
         
         #st.write(f"Usuario: {st.session_state['auth']['username']}")
@@ -158,9 +158,11 @@ def menu():
         #
         #mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
         
-        st.page_link("pages/registros.py", label="Registro", icon=":material/app_registration:")
-        st.page_link("pages/respuestas.py", label="Respuestas", icon=":material/article_person:")
-        st.page_link("pages/checkin.py", label="Check-in", icon=":material/lab_profile:")
+        st.page_link("pages/registros.py", label="Registro", icon=":material/article_person:")
+        #st.page_link("pages/respuestas.py", label="Respuestas", icon=":material/app_registration:")
+        #st.page_link("pages/checkin.py", label="Check-in", icon=":material/fact_check:")
+        st.page_link("pages/rpe.py", label="RPE", icon=":material/lab_profile:")
+        st.page_link("pages/reporte.py", label="Reporte individual", icon=":material/finance:")
         
         btnSalir = st.button("Cerrar Sesión", type="tertiary", icon=":material/logout:")
 
