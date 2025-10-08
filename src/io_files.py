@@ -1,7 +1,6 @@
 import json
 import os
 from io import BytesIO
-from typing import Optional, Tuple, List, Dict
 
 import pandas as pd
 
@@ -21,7 +20,7 @@ import pandas as pd
 
 from pathlib import Path
 
-JUGADORAS_JSON = Path("data/jugadoras.json")  # reemplaza el path al archivo JSON si es necesario
+#JUGADORAS_JSON = Path("data/jugadoras.json")  # reemplaza el path al archivo JSON si es necesario
 
 def _ensure_data_dir():
     os.makedirs("data", exist_ok=True)
@@ -34,7 +33,7 @@ def load_jugadoras() -> tuple[pd.DataFrame | None, str | None]:
         tuple: (DataFrame o None, mensaje de error o None)
     """
     _ensure_data_dir()
-    if not JUGADORAS_JSON.exists():
+    if not os.path.exists(JUGADORAS_JSON):
         return None, f"No se encontró {JUGADORAS_JSON}. Descarga y coloca el archivo."
 
     try:
@@ -47,13 +46,12 @@ def load_jugadoras() -> tuple[pd.DataFrame | None, str | None]:
             return None, f"Las columnas deben ser: {sorted(list(expected))}."
 
         return df, None
-
     except Exception as e:
         return None, f"Error leyendo jugadoras.json: {e}"
 
-def load_partes_json(path: str | Path) -> tuple[pd.DataFrame | None, str | None]:
+def load_partes_json() -> tuple[pd.DataFrame | None, str | None]:
     try:
-        with open(path, "r", encoding="utf-8") as f:
+        with open(PARTES_CUERPO_JSON, "r", encoding="utf-8") as f:
             data = json.load(f)
 
         # Verifica que el formato sea tipo: {"parte": [ ... ]}
@@ -113,10 +111,10 @@ def append_jsonl(record: dict) -> None:
     with open(REGISTROS_JSONL, "a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
-def _read_all_records() -> List[Dict]:
+def _read_all_records() -> list[dict]:
     """Read all JSONL records as a list of dicts. Missing file -> empty list."""
     _ensure_data_dir()
-    records: List[Dict] = []
+    records: list[dict] = []
     if not os.path.exists(REGISTROS_JSONL):
         return records
     with open(REGISTROS_JSONL, "r", encoding="utf-8") as f:
@@ -131,7 +129,7 @@ def _read_all_records() -> List[Dict]:
                 continue
     return records
 
-def _write_all_records(records: List[Dict]) -> None:
+def _write_all_records(records: list[dict]) -> None:
     """Overwrite the JSONL file with the provided records list."""
     _ensure_data_dir()
     with open(REGISTROS_JSONL, "w", encoding="utf-8") as f:
@@ -142,7 +140,7 @@ def _date_only(ts: str) -> str:
     """Extract YYYY-MM-DD from timestamp string like YYYY-MM-DDTHH:MM:SS."""
     return (ts or "").split("T")[0]
 
-def upsert_jsonl(record: Dict) -> None:
+def upsert_jsonl(record: dict) -> None:
     """Upsert a record by (id_jugadora, fecha YYYY-MM-DD, turno).
 
     - Si existe un registro del mismo día, misma jugadora y mismo turno, se fusiona
@@ -167,7 +165,7 @@ def upsert_jsonl(record: Dict) -> None:
             idx_to_update = idx
             break
 
-    def merge_records(old: Dict, new: Dict) -> Dict:
+    def merge_records(old: dict, new: dict) -> dict:
         merged = dict(old)
         for k, v in new.items():
             # Special handling: do not overwrite 'en_periodo' to False; only set True explicitly
@@ -202,7 +200,7 @@ def upsert_jsonl(record: Dict) -> None:
 
     _write_all_records(records)
 
-def get_record_for_player_day(id_jugadora: str, fecha_hora: str) -> Optional[Dict]:
+def get_record_for_player_day(id_jugadora: str, fecha_hora: str):
     """[DEPRECATED] Usa get_record_for_player_day_turno cuando haya turno.
 
     Devuelve el primer registro para la jugadora y el día dado (ignora turno).
@@ -214,7 +212,7 @@ def get_record_for_player_day(id_jugadora: str, fecha_hora: str) -> Optional[Dic
             return rec
     return None
 
-def get_record_for_player_day_turno(id_jugadora: str, fecha_hora: str, turno: str) -> Optional[Dict]:
+def get_record_for_player_day_turno(id_jugadora: str, fecha_hora: str, turno: str):
     """Devuelve el primer registro para (jugadora, día, turno)."""
     records = _read_all_records()
     target_day = _date_only(fecha_hora or "")

@@ -23,7 +23,7 @@ from src.schema import (
 
 from src.io_files import (
     load_jugadoras,
-    load_partes_cuerpo,
+    load_partes_json,
     append_jsonl,
     upsert_jsonl,
     get_record_for_player_day,
@@ -43,7 +43,16 @@ menu()
 
 # Load reference data
 jug_df, jug_error = load_jugadoras()
-partes_df, partes_error = load_partes_cuerpo()
+
+if jug_error:
+    st.error(jug_error)
+    st.stop()
+
+partes_df, partes_error = load_partes_json()
+
+if partes_error:
+    st.error(partes_error)
+    st.stop()
 
 jugadora, tipo, turno = selection_header(jug_df)
 

@@ -1,4 +1,3 @@
-from typing import Dict, Tuple
 from datetime import date
 
 import pandas as pd
@@ -44,7 +43,7 @@ def selection_header(jug_df: pd.DataFrame):
 
     return jugadora_opt, tipo, turno
 
-def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str]:
+def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str]:
     
     with st.container():
         st.markdown("#### **Check-in (pre-entrenamiento)**")
@@ -85,7 +84,7 @@ def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str
         is_valid, msg = validate_checkin(record)
     return record, is_valid, msg
 
-def checkout_form(record: Dict) -> Tuple[Dict, bool, str]:
+def checkout_form(record: dict) -> tuple[dict, bool, str]:
     
     with st.container():
         st.markdown("#### **Check-out (post-entrenamiento)**")
@@ -105,7 +104,7 @@ def checkout_form(record: Dict) -> Tuple[Dict, bool, str]:
         is_valid, msg = validate_checkout(record)
         return record, is_valid, msg
 
-def validate_checkout(record: Dict) -> Tuple[bool, str]:
+def validate_checkout(record: dict) -> tuple[bool, str]:
     # Minutes > 0
     minutos = record.get("minutos_sesion")
     if minutos is None or int(minutos) <= 0:
@@ -120,7 +119,7 @@ def validate_checkout(record: Dict) -> Tuple[bool, str]:
         return False, "UA no calculado."
     return True, ""
 
-def preview_record(record: Dict) -> None:
+def preview_record(record: dict) -> None:
     #st.subheader("Previsualización")
     # Header with key fields
     jug = record.get("nombre_jugadora", "-")
@@ -570,15 +569,15 @@ def checkin_view(df: pd.DataFrame) -> None:
                 if "nombre_jugadora" in d.columns
                 else []
             )
-            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[], placeholder="Selecciona una o mas")
         with f3:
             turnos = ["Turno 1", "Turno 2", "Turno 3"]
             if "turno" in d.columns:
                 present = d["turno"].dropna().astype(str).unique().tolist()
                 turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
-            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[], placeholder="Selecciona uno o mas")
         with f4:
-            ics_sel = st.multiselect("ICS", options=["ROJO", "AMARILLO", "VERDE"], default=[])
+            ics_sel = st.multiselect("ICS", options=["ROJO", "AMARILLO", "VERDE"], default=[], placeholder="Selecciona uno o mas")
 
     day_mask = d["fecha"].dt.date == sel_date
     day_df = d[day_mask].copy()
@@ -1037,3 +1036,249 @@ def individual_report_view(df: pd.DataFrame) -> None:
             err = base.mark_errorbar(color=BRAND_TEXT, opacity=0.8).encode(y="yLow:Q", y2="yHigh:Q")
             line = base.mark_line(color=BRAND_TEXT).encode(y=alt.Y("team_avg:Q", title="Promedio equipo"))
             st.altair_chart(alt.layer(bars, err, line).properties(height=220), use_container_width=True)
+
+def risk_view(df: pd.DataFrame) -> None:
+    
+    if df is None or df.empty:
+        st.info("No hay registros aún.")
+        return
+    d = df.copy()
+    # Asegurar columnas de fecha y día
+    if "fecha" not in d.columns and "fecha_hora" in d.columns:
+        d["fecha"] = pd.to_datetime(d["fecha_hora"], errors="coerce")
+    if "fecha_dia" not in d.columns and "fecha" in d.columns:
+        d["fecha_dia"] = d["fecha"].dt.date
+
+    # Controles
+    with st.expander("Controles", expanded=True):
+        c1, c2, c3, c4 = st.columns([1, 1, 1, 1])
+        with c1:
+            # Rango fechas por defecto: todo el rango disponible
+            if "fecha_dia" in d.columns and not d["fecha_dia"].isna().all():
+                min_date = d["fecha_dia"].min()
+                max_date = d["fecha_dia"].max()
+                start, end = st.date_input("Rango de fechas", value=(min_date, max_date), min_value=min_date, max_value=max_date)
+            else:
+                start, end = None, None
+        with c2:
+            jugadores = (
+                sorted(d["nombre_jugadora"].dropna().astype(str).unique().tolist())
+                if "nombre_jugadora" in d.columns
+                else []
+            )
+            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+        with c3:
+            turnos = ["Turno 1", "Turno 2", "Turno 3"]
+            if "turno" in d.columns:
+                present = d["turno"].dropna().astype(str).unique().tolist()
+                turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
+            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+        with c4:
+            w_rpe = st.slider("Peso RPE/ACWR", min_value=0.0, max_value=1.0, value=0.5, step=0.05)
+            w_well = 1.0 - w_rpe
+            st.caption(f"Peso Wellness: {w_well:.2f}")
+
+    # Filtros globales por fecha/turno (pero mantenemos jugadores para todos por defecto)
+    if start and end and "fecha_dia" in d.columns:
+        mask = (d["fecha_dia"] >= start) & (d["fecha_dia"] <= end)
+        d = d[mask]
+    if 'turno_sel' in locals() and turno_sel:
+        d = d[d["turno"].astype(str).isin(turno_sel)]
+    if d.empty:
+        st.info("No hay datos en el rango/criterios seleccionados.")
+        return
+
+    # Preparar UA por jugadora por día para ACWR
+    dd = d.copy()
+    if "tipo" in dd.columns:
+        dd = dd[dd["tipo"] == "checkOut"]
+    if "ua" in dd.columns:
+        dd["ua"] = pd.to_numeric(dd["ua"], errors="coerce")
+    else:
+        dd["ua"] = pd.NA
+    dd = dd.dropna(subset=["fecha_dia"]) if "fecha_dia" in dd.columns else dd
+
+    # Agrupar UA por jugadora y día
+    if dd.empty or "nombre_jugadora" not in dd.columns or "fecha_dia" not in dd.columns:
+        acwr_per_player = pd.DataFrame(columns=["nombre_jugadora", "acwr"])
+    else:
+        per_day = (
+            dd.groupby(["nombre_jugadora", "fecha_dia"], as_index=False)["ua"].sum()
+            .rename(columns={"ua": "ua_total"})
+        )
+        # Último día de referencia dentro del rango
+        end_day = per_day["fecha_dia"].max() if not per_day.empty else None
+        # Rolling para cada jugadora
+        def compute_acwr_player(g: pd.DataFrame) -> float | None:
+            g = g.sort_values("fecha_dia").copy()
+            g["acute_mean7"] = g["ua_total"].rolling(7, min_periods=3).mean()
+            g["chronic_mean28"] = g["ua_total"].rolling(28, min_periods=7).mean()
+            g["acwr"] = g["acute_mean7"] / g["chronic_mean28"]
+            # tomar valor del último día del grupo que coincida con end_day
+            last = g[g["fecha_dia"] == end_day]
+            if not last.empty and pd.notna(last["acwr"].iloc[0]):
+                return float(last["acwr"].iloc[0])
+            # fallback: último acwr disponible
+            last_non_na = g.dropna(subset=["acwr"]).tail(1)
+            return float(last_non_na["acwr"].iloc[0]) if not last_non_na.empty else None
+
+        acwr_vals = (
+            per_day.groupby("nombre_jugadora")
+            .apply(compute_acwr_player)
+            .reset_index(name="acwr")
+        )
+        acwr_per_player = acwr_vals
+
+    # Mapear ACWR a riesgo 0..1 (proximidad a lesión)
+    def acwr_to_risk(x: float | None) -> float:
+        if x is None or pd.isna(x):
+            return 0.5  # desconocido -> riesgo medio
+        try:
+            x = float(x)
+        except Exception:
+            return 0.5
+        # piecewise: <0.8 bajo; 0.8-1.3 sweet; 1.3-1.5 elevado; >1.5 peligro
+        if x < 0.8:
+            return 0.2
+        if 0.8 <= x < 1.3:
+            # de 0.8 a 1.3 sube de 0.3 a 0.5 suavemente
+            return 0.3 + (x - 0.8) * (0.2 / 0.5)
+        if 1.3 <= x < 1.5:
+            # de 1.3 a 1.5 sube de 0.6 a 0.8
+            return 0.6 + (x - 1.3) * (0.2 / 0.2)
+        # >= 1.5
+        return 1.0
+
+    # Wellness: calcular ICS más reciente por jugadora en rango
+    ci = d.copy()
+    # Mantener filas que tengan al menos uno de los campos de check-in
+    checkin_fields = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
+    existing_fields = [c for c in checkin_fields if c in ci.columns]
+    if existing_fields:
+        ci = ci[ci[existing_fields].notna().any(axis=1)]
+    else:
+        ci = pd.DataFrame(columns=d.columns)
+
+    def _val_cat(v: float) -> str:
+        try:
+            v = float(v)
+        except Exception:
+            return ""
+        if v in (1, 2):
+            return "VERDE"
+        if v == 3:
+            return "AMARILLO"
+        if v in (4, 5):
+            return "ROJO"
+        return ""
+
+    def _compute_ics(row: pd.Series) -> str:
+        keys = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
+        if not all(k in row and pd.notna(row[k]) for k in keys):
+            return ""
+        cats = {k: _val_cat(row[k]) for k in keys}
+        greens = sum(1 for c in cats.values() if c == "VERDE")
+        yellows = [k for k, c in cats.items() if c == "AMARILLO"]
+        reds = sum(1 for c in cats.values() if c == "ROJO")
+        if reds >= 1:
+            return "ROJO"
+        if len(yellows) >= 3:
+            return "ROJO"
+        if len(yellows) == 2 and ("dolor" in yellows):
+            return "ROJO"
+        if greens == 5:
+            return "VERDE"
+        if greens == 4 and len(yellows) == 1 and ("dolor" not in yellows):
+            return "VERDE"
+        if len(yellows) == 1:
+            return "AMARILLO"
+        if len(yellows) == 2 and ("dolor" not in yellows):
+            return "AMARILLO"
+        return "AMARILLO" if len(yellows) > 0 else ""
+
+    if not ci.empty:
+        ci = ci.copy()
+        for k in checkin_fields:
+            if k in ci.columns:
+                ci[k] = pd.to_numeric(ci[k], errors="coerce")
+        ci["ICS"] = ci.apply(_compute_ics, axis=1)
+        # último ICS por jugadora
+        ci = ci.sort_values("fecha") if "fecha" in ci.columns else ci
+        last_ics = ci.dropna(subset=["ICS"]) if "ICS" in ci.columns else pd.DataFrame()
+        if not last_ics.empty and "nombre_jugadora" in last_ics.columns:
+            last_idx = last_ics.groupby("nombre_jugadora")["fecha"].idxmax() if "fecha" in last_ics.columns else last_ics.groupby("nombre_jugadora").tail(1).index
+            last_ics = last_ics.loc[last_idx, ["nombre_jugadora", "ICS"]]
+        else:
+            last_ics = pd.DataFrame(columns=["nombre_jugadora", "ICS"])
+    else:
+        last_ics = pd.DataFrame(columns=["nombre_jugadora", "ICS"])
+
+    def ics_to_risk(cat: str) -> float:
+        if cat == "ROJO":
+            return 1.0
+        if cat == "AMARILLO":
+            return 0.6
+        if cat == "VERDE":
+            return 0.2
+        return 0.5
+
+    # Merge ACWR y ICS
+    players = sorted(set(d.get("nombre_jugadora", pd.Series(dtype=str)).dropna().astype(str).tolist()))
+    if 'jug_sel' in locals() and jug_sel:
+        players = [p for p in players if p in jug_sel]
+    risk_df = pd.DataFrame({"nombre_jugadora": players})
+    risk_df = risk_df.merge(acwr_per_player, on="nombre_jugadora", how="left")
+    risk_df = risk_df.merge(last_ics, on="nombre_jugadora", how="left")
+    risk_df["risk_acwr"] = risk_df["acwr"].apply(acwr_to_risk)
+    risk_df["risk_ics"] = risk_df["ICS"].apply(ics_to_risk)
+    risk_df["riesgo"] = (w_rpe * risk_df["risk_acwr"]) + ((1.0 - w_rpe) * risk_df["risk_ics"]) if "risk_acwr" in risk_df.columns else risk_df["risk_ics"]
+
+    if risk_df.empty:
+        st.info("No hay jugadoras para mostrar.")
+        return
+
+    # Mostrar KPIs y tabla
+    k1, k2, k3 = st.columns(3)
+    with k1:
+        st.metric("Jugadoras", value=len(risk_df), border=True)
+    with k2:
+        st.metric("Riesgo medio", value=f"{risk_df['riesgo'].mean():.2f}", border=True)
+    with k3:
+        st.metric(
+            "% en zona de peligro (ACWR>1.5)",
+            value=f"{(risk_df['acwr'] > 1.5).fillna(False).mean() * 100:.0f}%" if 'acwr' in risk_df.columns else "-",
+            border=True
+        )
+
+    # Ordenar por riesgo
+    risk_df = risk_df.sort_values(["riesgo", "nombre_jugadora"], ascending=[False, True])
+
+    # Gráfico de barras
+    plot = risk_df.copy()
+    plot["riesgo_pct"] = (plot["riesgo"].clip(0, 1) * 100.0).round(1)
+    chart = alt.Chart(plot).encode(
+        x=alt.X("riesgo_pct:Q", title="Proximidad al riesgo (%)", scale=alt.Scale(domain=[0, 100])),
+        y=alt.Y("nombre_jugadora:N", sort=plot["nombre_jugadora"].tolist(), title="Jugadora"),
+        color=alt.Color("riesgo_pct:Q", scale=alt.Scale(scheme="reds"), legend=None),
+        tooltip=[
+            "nombre_jugadora:N",
+            alt.Tooltip("riesgo_pct:Q", title="Riesgo %", format=".1f"),
+            alt.Tooltip("acwr:Q", title="ACWR", format=".2f"),
+            alt.Tooltip("ICS:N", title="ICS"),
+        ],
+    ).mark_bar()
+    st.altair_chart(chart.properties(height=max(200, 24 * len(plot))), use_container_width=True)
+
+    # Tabla detallada
+    st.markdown("---")
+    show_tbl = plot[["nombre_jugadora", "acwr", "risk_acwr", "ICS", "risk_ics", "riesgo", "riesgo_pct"]].copy()
+    show_tbl = show_tbl.rename(columns={
+        "nombre_jugadora": "Jugadora",
+        "acwr": "ACWR",
+        "risk_acwr": "Riesgo ACWR (0-1)",
+        "ICS": "ICS",
+        "risk_ics": "Riesgo Wellness (0-1)",
+        "riesgo": "Riesgo combinado (0-1)",
+        "riesgo_pct": "Riesgo %",
+    })
+    st.dataframe(show_tbl, use_container_width=True)

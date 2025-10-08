@@ -1,8 +1,7 @@
 from datetime import datetime
-from typing import Dict, Tuple
 
 
-def new_base_record(id_jugadora: str, nombre_jugadora: str, tipo: str) -> Dict:
+def new_base_record(id_jugadora: str, nombre_jugadora: str, tipo: str) -> dict:
     """Create a base record structure with defaults.
 
     tipo: 'checkIn' | 'checkOut'
@@ -31,8 +30,7 @@ def new_base_record(id_jugadora: str, nombre_jugadora: str, tipo: str) -> Dict:
         "observacion": "",
     }
 
-
-def validate_checkin(record: Dict) -> Tuple[bool, str]:
+def validate_checkin(record: dict) -> tuple[bool, str]:
     # Required 1..5
     for field in ["recuperacion", "fatiga", "sueno", "stress", "dolor"]:
         value = record.get(field)

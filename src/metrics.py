@@ -2,11 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Dict, Optional, Tuple
 
 import numpy as np
 import pandas as pd
-
+from typing import Optional
 
 @dataclass
 class RPEFilters:
@@ -54,13 +53,11 @@ def _daily_loads(df: pd.DataFrame) -> pd.DataFrame:
     grp = grp.rename(columns={"ua": "ua_total"}).sort_values("fecha_dia")
     return grp
 
-
-def _week_id(d: date) -> Tuple[int, int]:
+def _week_id(d: date) -> tuple[int, int]:
     iso = d.isocalendar()
     return (iso.year, iso.week)
 
-
-def _current_week_range(end_day: date) -> Tuple[date, date]:
+def _current_week_range(end_day: date) -> tuple[date, date]:
     # Monday to Sunday containing end_day
     weekday = end_day.weekday()  # Monday=0
     start = end_day - timedelta(days=weekday)
@@ -68,7 +65,7 @@ def _current_week_range(end_day: date) -> Tuple[date, date]:
     return start, end
 
 
-def _month_range(end_day: date) -> Tuple[date, date]:
+def _month_range(end_day: date) -> tuple[date, date]:
     start = end_day.replace(day=1)
     if start.month == 12:
         next_month_start = start.replace(year=start.year + 1, month=1, day=1)
@@ -78,11 +75,11 @@ def _month_range(end_day: date) -> Tuple[date, date]:
     return start, end
 
 
-def compute_rpe_metrics(df_raw: pd.DataFrame, flt: RPEFilters) -> Dict:
+def compute_rpe_metrics(df_raw: pd.DataFrame, flt: RPEFilters) -> dict:
     df = _prepare_checkout_df(df_raw)
     df = _apply_filters(df, flt)
 
-    res: Dict = {
+    res: dict = {
         "ua_total_dia": None,
         "carga_semana": None,
         "carga_mes": None,

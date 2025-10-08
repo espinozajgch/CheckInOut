@@ -23,7 +23,6 @@ from src.schema import (
 
 from src.io_files import (
     load_jugadoras,
-    load_partes_cuerpo,
     append_jsonl,
     upsert_jsonl,
     get_record_for_player_day,

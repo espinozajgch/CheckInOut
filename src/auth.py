@@ -1,10 +1,4 @@
 import streamlit as st
-
-import os
-from typing import Tuple
-from dotenv import load_dotenv
-from src.util import centered_text
-
 import jwt
 import time
 #from streamlit_cookies_manager import EncryptedCookieManager
@@ -32,26 +26,25 @@ def ensure_session_defaults() -> None:
         st.session_state["auth"] = {
             "is_logged_in": False,
             "username": "",
+            "rol": "",
             "token": ""
         }
 
-def _get_credentials() -> Tuple[str, str]:
+def _get_credentials() -> tuple[str, str]:
     """Load credentials from environment or fallback to hardcoded defaults.
 
     Environment variables (optional): TRAINER_USER, TRAINER_PASS
     Defaults: admin / admin
     """
-    #load_dotenv()
-    # user = os.getenv("TRAINER_USER", "admin")
-    # pwd = os.getenv("TRAINER_PASS", "admin")
     user = st.secrets.db.username
     pwd = st.secrets.db.password
-    return user, pwd
+    rol = st.secrets.db.rol
+    return user, pwd, rol
 
 def login_view() -> None:
     """Render the login form and handle authentication."""
     
-    expected_user, expected_pass = _get_credentials()
+    expected_user, expected_pass, rol = _get_credentials()
     
     _, col2, _ = st.columns([2, 1.5, 2])
 
@@ -83,12 +76,13 @@ def login_view() -> None:
         if submitted:
             if username == expected_user and password == expected_pass:
 
-                token = create_jwt_token(username)
+                token = create_jwt_token(username, rol)
                 cookies["auth_token"] = token
                 cookies.save()
                 
                 st.session_state["auth"]["is_logged_in"] = True
                 st.session_state["auth"]["username"] = username
+                st.session_state["auth"]["rol"] = rol
                 st.session_state["auth"]["token"] = token
 
                 st.success("Autenticado correctamente")
@@ -98,18 +92,12 @@ def login_view() -> None:
 
         st.caption("Usa usuario/contraseña proporcionados o variables de entorno TRAINER_USER/TRAINER_PASS")
 
-def logout():
-    """Elimina sesión y cookie."""
-    st.session_state["auth"] = {"is_logged_in": False, "username": "", "token": ""}
-    cookies["auth_token"] = ""
-    cookies.save()
 
-    st.rerun()
-
-def create_jwt_token(username: str):
+def create_jwt_token(username: str, rol: str) -> str:
     """Crea un token JWT firmado con expiración."""
     payload = {
         "user": username,
+        "rol": rol,
         "exp": time.time() + JWT_EXP_DELTA_SECONDS,
         "iat": time.time()
     }
@@ -126,6 +114,7 @@ def get_current_user():
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         st.session_state["auth"]["is_logged_in"] = True
         st.session_state["auth"]["username"] = payload["user"]
+        st.session_state["auth"]["rol"] = payload["rol"]
         st.session_state["auth"]["token"] = token
         
         return payload["user"]
@@ -159,9 +148,10 @@ def menu():
         #mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
         
         st.page_link("pages/registros.py", label="Registro", icon=":material/article_person:")
-        #st.page_link("pages/respuestas.py", label="Respuestas", icon=":material/app_registration:")
+        
         #st.page_link("pages/checkin.py", label="Check-in", icon=":material/fact_check:")
-        st.page_link("pages/rpe.py", label="RPE", icon=":material/lab_profile:")
+        st.page_link("pages/rpe.py", label="RPE", icon=":material/accessible_menu:")
+        st.page_link("pages/riesgo.py", label="Riesgo", icon=":material/falling:")
         st.page_link("pages/reporte.py", label="Reporte individual", icon=":material/finance:")
         
         btnSalir = st.button("Cerrar Sesión", type="tertiary", icon=":material/logout:")
@@ -169,3 +159,10 @@ def menu():
         if btnSalir:
             logout()
 
+def logout():
+    """Elimina sesión y cookie."""
+    st.session_state["auth"] = {"is_logged_in": False, "username": "", "token": "", "rol": ""}
+    cookies["auth_token"] = ""
+    cookies.save()
+
+    st.rerun()
