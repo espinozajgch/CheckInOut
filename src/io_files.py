@@ -8,50 +8,68 @@ import pandas as pd
 # Paths
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 DATA_DIR = os.path.join(BASE_DIR, "data")
-JUGADORAS_XLSX = os.path.join(DATA_DIR, "jugadoras.xlsx")
-PARTES_CUERPO_XLSX = os.path.join(DATA_DIR, "partes_cuerpo.xlsx")
+JUGADORAS_JSON = os.path.join(DATA_DIR, "jugadoras.jsonl")
+PARTES_CUERPO_JSON = os.path.join(DATA_DIR, "partes_cuerpo.jsonl")
 REGISTROS_JSONL = os.path.join(DATA_DIR, "registros.jsonl")
-
 
 def _ensure_data_dir() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
 
+import os
+import json
+import pandas as pd
 
-def load_jugadoras() -> Tuple[Optional[pd.DataFrame], Optional[str]]:
-    """Load jugadoras Excel. Expects columns: id_jugadora, nombre_jugadora
+from pathlib import Path
 
-    Returns (df, error_msg). If error_msg is not None, df will be None.
+JUGADORAS_JSON = Path("data/jugadoras.json")  # reemplaza el path al archivo JSON si es necesario
+
+def _ensure_data_dir():
+    os.makedirs("data", exist_ok=True)
+
+def load_jugadoras() -> tuple[pd.DataFrame | None, str | None]:
+    """
+    Carga jugadoras desde archivo JSON. Se esperan las claves: id_jugadora, nombre_jugadora
+
+    Returns:
+        tuple: (DataFrame o None, mensaje de error o None)
     """
     _ensure_data_dir()
-    if not os.path.exists(JUGADORAS_XLSX):
-        return None, f"No se encontró {JUGADORAS_XLSX}. Descarga y coloca el archivo."
+    if not JUGADORAS_JSON.exists():
+        return None, f"No se encontró {JUGADORAS_JSON}. Descarga y coloca el archivo."
+
     try:
-        df = pd.read_excel(JUGADORAS_XLSX)
+        with open(JUGADORAS_JSON, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        df = pd.DataFrame(data)
         expected = {"id_jugadora", "nombre_jugadora"}
         if not expected.issubset(df.columns.astype(str)):
             return None, f"Las columnas deben ser: {sorted(list(expected))}."
+
         return df, None
+
     except Exception as e:
-        return None, f"Error leyendo jugadoras.xlsx: {e}"
+        return None, f"Error leyendo jugadoras.json: {e}"
 
-
-def load_partes_cuerpo() -> Tuple[Optional[pd.DataFrame], Optional[str]]:
-    """Load partes del cuerpo Excel. Expects column: parte
-
-    Returns (df, error_msg). If error_msg is not None, df will be None.
-    """
-    _ensure_data_dir()
-    if not os.path.exists(PARTES_CUERPO_XLSX):
-        return None, f"No se encontró {PARTES_CUERPO_XLSX}. Descarga y coloca el archivo."
+def load_partes_json(path: str | Path) -> tuple[pd.DataFrame | None, str | None]:
     try:
-        df = pd.read_excel(PARTES_CUERPO_XLSX)
-        expected = {"parte"}
-        if not expected.issubset(df.columns.astype(str)):
-            return None, f"Las columnas deben incluir: {sorted(list(expected))}."
-        return df, None
-    except Exception as e:
-        return None, f"Error leyendo partes_cuerpo.xlsx: {e}"
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
+        # Verifica que el formato sea tipo: {"parte": [ ... ]}
+        if not isinstance(data, dict) or "parte" not in data:
+            return None, "Formato inválido: se esperaba una clave 'parte' con lista de valores."
+
+        partes = data["parte"]
+        if not isinstance(partes, list) or not all(isinstance(p, str) for p in partes):
+            return None, "Los valores bajo 'parte' deben ser una lista de strings."
+
+        # Convertimos a DataFrame como espera la app
+        df = pd.DataFrame({"parte": partes})
+        return df, None
+
+    except Exception as e:
+        return None, f"Error al cargar el archivo: {e}"
 
 def get_template_bytes(template_type: str) -> bytes:
     """Return Excel bytes for templates.
@@ -85,7 +103,6 @@ def get_template_bytes(template_type: str) -> bytes:
     buffer.seek(0)
     return buffer.read()
 
-
 def append_jsonl(record: dict) -> None:
     """Append a dict as one line of JSON to the registros.jsonl file."""
     _ensure_data_dir()
@@ -95,7 +112,6 @@ def append_jsonl(record: dict) -> None:
             pass
     with open(REGISTROS_JSONL, "a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
-
 
 def _read_all_records() -> List[Dict]:
     """Read all JSONL records as a list of dicts. Missing file -> empty list."""
@@ -115,7 +131,6 @@ def _read_all_records() -> List[Dict]:
                 continue
     return records
 
-
 def _write_all_records(records: List[Dict]) -> None:
     """Overwrite the JSONL file with the provided records list."""
     _ensure_data_dir()
@@ -123,11 +138,9 @@ def _write_all_records(records: List[Dict]) -> None:
         for rec in records:
             f.write(json.dumps(rec, ensure_ascii=False) + "\n")
 
-
 def _date_only(ts: str) -> str:
     """Extract YYYY-MM-DD from timestamp string like YYYY-MM-DDTHH:MM:SS."""
     return (ts or "").split("T")[0]
-
 
 def upsert_jsonl(record: Dict) -> None:
     """Upsert a record by (id_jugadora, fecha YYYY-MM-DD, turno).
@@ -189,7 +202,6 @@ def upsert_jsonl(record: Dict) -> None:
 
     _write_all_records(records)
 
-
 def get_record_for_player_day(id_jugadora: str, fecha_hora: str) -> Optional[Dict]:
     """[DEPRECATED] Usa get_record_for_player_day_turno cuando haya turno.
 
@@ -201,7 +213,6 @@ def get_record_for_player_day(id_jugadora: str, fecha_hora: str) -> Optional[Dic
         if rec.get("id_jugadora") == id_jugadora and _date_only(rec.get("fecha_hora", "")) == target_day:
             return rec
     return None
-
 
 def get_record_for_player_day_turno(id_jugadora: str, fecha_hora: str, turno: str) -> Optional[Dict]:
     """Devuelve el primer registro para (jugadora, día, turno)."""
@@ -216,7 +227,6 @@ def get_record_for_player_day_turno(id_jugadora: str, fecha_hora: str, turno: st
         ):
             return rec
     return None
-
 
 def get_records_df() -> pd.DataFrame:
     """Return all registros as a pandas DataFrame. If none, returns empty DF.
