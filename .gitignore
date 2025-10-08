@@ -212,3 +212,4 @@ desktop.ini
 # Archivos de respaldo de registros
 data/registros.backup_*.jsonl
 .streamlit/secrets.toml
+

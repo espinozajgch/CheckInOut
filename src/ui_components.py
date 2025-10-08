@@ -3,6 +3,7 @@ from datetime import date
 import pandas as pd
 import altair as alt
 import streamlit as st
+import streamlit.components.v1 as components
 
 from .io_files import get_template_bytes, load_jugadoras
 from .schema import validate_checkin
@@ -11,6 +12,31 @@ from .metrics import compute_rpe_metrics, RPEFilters
 # Brand colors (Dux Logroño): grana primary and black text
 BRAND_PRIMARY = "#800000"  # grana/maroon
 BRAND_TEXT = "#000000"     # black
+
+
+def _exportable_chart(chart: alt.Chart, key: str, height: int = 300):
+    """Render Altair chart with a small export UI (PNG) via vega-embed actions.
+
+    This renders an additional lightweight copy of the chart below the Streamlit chart
+    that exposes the vega-embed toolbar with 'Export' enabled.
+    """
+    try:
+        spec = chart.to_json()
+        html = f"""
+        <div id="{key}" style="width:100%"></div>
+        <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+        <script>
+          const spec = {spec};
+          vegaEmbed('#{key}', spec, {{ actions: {{ export: true, source: false, editor: false, compiled: false }} }});
+        </script>
+        """
+        components.html(html, height=height + 60)
+    except Exception:
+        # Fallback: no-op if export failed
+        pass
+
 
 def selection_header(jug_df: pd.DataFrame):
 
@@ -67,8 +93,17 @@ def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str
         else:
             record["partes_cuerpo_dolor"] = []
 
-        st.divider()
-        st.caption("Campos opcionales")
+
+    st.divider()
+    st.caption("Campos opcionales")
+
+    colA, colB = st.columns([2, 1])
+    with colA:
+        record["periodizacion_tactica"] = st.slider(
+            "Matchday (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
+        )
+        record["observacion"] = st.text_area("Observación", value="")
+    with colB:
         record["en_periodo"] = st.checkbox("En periodo")
         
         colA, colB = st.columns([2, 1])
@@ -255,13 +290,13 @@ def rpe_view(df: pd.DataFrame) -> None:
             if "nombre_jugadora" in df.columns
             else []
         )
-        jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+        jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[], placeholder="Selecciona una o mas jugadoras")
     with c2:
         turnos = ["Turno 1", "Turno 2", "Turno 3"]
         if "turno" in df.columns:
             present = df["turno"].dropna().astype(str).unique().tolist()
             turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
-        turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+        turno_sel = st.multiselect("Turno(s)", options=turnos, default=[], placeholder="Selecciona un o mas turnos")
     with c3:
         if min_date and max_date:
             start, end = st.date_input(
@@ -397,17 +432,25 @@ def rpe_view(df: pd.DataFrame) -> None:
             st.info("No hay datos válidos para graficar.")
             return
 
-        # Agregar por jugadora y día: RPE medio y UA total
+        # Agregar por jugadora y día: RPE medio, UA total y PT (si existe)
         per_player_day = (
             d.groupby(["fecha_dia", "nombre_jugadora"], as_index=False)
             .agg({"rpe": "mean", "ua": "sum"})
         )
+        if "periodizacion_tactica" in d.columns:
+            try:
+                d_pt = d.copy()
+                d_pt["periodizacion_tactica"] = pd.to_numeric(d_pt["periodizacion_tactica"], errors="coerce")
+                pt_grp = d_pt.groupby(["fecha_dia", "nombre_jugadora"], as_index=False)["periodizacion_tactica"].mean()
+                pt_grp = pt_grp.rename(columns={"periodizacion_tactica": "pt"})
+                per_player_day = per_player_day.merge(pt_grp, on=["fecha_dia", "nombre_jugadora"], how="left")
+            except Exception:
+                pass
 
         # Promedio del equipo por día (promedio entre jugadoras ese día)
         team_daily = (
             per_player_day.groupby("fecha_dia", as_index=False)
             .agg({"rpe": "mean", "ua": "mean"})
-            .rename(columns={"rpe": "team_rpe_avg", "ua": "team_ua_avg"})
         )
 
         # Determinar jugadoras a mostrar y ordenarlas
@@ -445,7 +488,7 @@ def rpe_view(df: pd.DataFrame) -> None:
                 st.info("Sin datos en el rango para esta jugadora.")
                 continue
             # Join con promedio del equipo
-            plot_df = p_df.merge(team_daily[["fecha_dia_dt", "team_rpe_avg", "team_ua_avg"]], on="fecha_dia_dt", how="left")
+            plot_df = p_df.merge(team_daily[["fecha_dia_dt", "rpe", "ua"]], on="fecha_dia_dt", how="left")
 
             # RPE: barras (jugadora) + línea (promedio equipo)
             base_rpe = alt.Chart(plot_df).encode(
@@ -453,10 +496,16 @@ def rpe_view(df: pd.DataFrame) -> None:
             )
             bars_rpe = base_rpe.mark_bar(color=BRAND_PRIMARY).encode(
                 y=alt.Y("rpe:Q", title="RPE diario (media)"),
-                tooltip=["fecha_dia_dt:T", alt.Tooltip("rpe:Q", format=".2f", title="RPE jugadora"), alt.Tooltip("team_rpe_avg:Q", format=".2f", title="RPE promedio equipo")],
+                tooltip=[
+                    "fecha_dia_dt:T",
+                    alt.Tooltip("rpe:Q", format=".2f", title="RPE jugadora"),
+                    alt.Tooltip("rpe:Q", title="RPE promedio equipo"),
+                    alt.Tooltip("pt:Q", title="MD") if "pt" in plot_df.columns else alt.Tooltip("rpe:Q", title="")
+                ],
             )
+
             line_rpe = base_rpe.mark_line(color=BRAND_TEXT, point=True).encode(
-                y=alt.Y("team_rpe_avg:Q", title="RPE promedio equipo"),
+                y=alt.Y("rpe:Q", title="RPE promedio equipo"),
             )
             if chart_type == "RPE":
                 chart_rpe = alt.layer(bars_rpe, line_rpe).resolve_scale(y='independent').properties(height=220, width="container")
@@ -468,10 +517,16 @@ def rpe_view(df: pd.DataFrame) -> None:
             )
             bars_ua = base_ua.mark_bar(color=BRAND_PRIMARY).encode(
                 y=alt.Y("ua:Q", title="UA diario (suma)"),
-                tooltip=["fecha_dia_dt:T", alt.Tooltip("ua:Q", format=".0f", title="UA jugadora"), alt.Tooltip("team_ua_avg:Q", format=".0f", title="UA promedio equipo")],
+                tooltip=[
+                    "fecha_dia_dt:T",
+                    alt.Tooltip("ua:Q", format=".0f", title="UA jugadora"),
+                    alt.Tooltip("ua:Q", format=".0f", title="UA promedio equipo"),
+                    alt.Tooltip("pt:Q", title="MD") if "pt" in plot_df.columns else alt.Tooltip("ua:Q", title="")
+                ],
             )
+
             line_ua = base_ua.mark_line(color=BRAND_TEXT, point=True).encode(
-                y=alt.Y("team_ua_avg:Q", title="UA promedio equipo"),
+                y=alt.Y("ua:Q", title="UA promedio equipo"),
             )
             if chart_type == "UA":
                 chart_ua = alt.layer(bars_ua, line_ua).resolve_scale(y='independent').properties(height=220, width="container")
@@ -497,7 +552,8 @@ def rpe_view(df: pd.DataFrame) -> None:
                                 return "Sweet Spot"
                             if v >= 1.5:
                                 return "Danger Zone"
-                            return "Elevada"
+                            return ""
+
                         except Exception:
                             return ""
 
@@ -514,7 +570,15 @@ def rpe_view(df: pd.DataFrame) -> None:
                         x=alt.X("fecha_dia_dt:T", title="Fecha"),
                         y=alt.Y("acwr:Q", title="ACWR (agudo:crónico)", scale=alt.Scale(domain=[0, max(2.5, float(acwr_src['acwr'].max()) + 0.2)])),
                     )
-                    pts = base_acwr.mark_circle(size=60).encode(color=alt.Color("zona:N", scale=alt.Scale(domain=["Sweet Spot", "Baja", "Elevada", "Danger Zone"], range=["#2ca25f", "#9ecae1", "#fdae6b", "#d62728"]), title="Zona"), tooltip=["fecha_dia_dt:T", alt.Tooltip("acwr:Q", format=".2f")])
+                    pts = base_acwr.mark_circle(size=60).encode(
+                        color=alt.Color("zona:N", scale=alt.Scale(domain=["Sweet Spot", "Baja", "Elevada", "Danger Zone"], range=["#2ca25f", "#9ecae1", "#fdae6b", "#d62728"]), title="Zona"),
+                        tooltip=[
+                            "fecha_dia_dt:T",
+                            alt.Tooltip("acwr:Q", format=".2f"),
+                            (alt.Tooltip("pt:Q", title="MD") if "pt" in acwr_src.columns else alt.Tooltip("acwr:Q", title=""))
+                        ]
+                    )
+
                     line = base_acwr.mark_line(color=BRAND_TEXT)
 
                     # Para que los rectángulos cubran todo el eje X, damos una escala X con domain igual al de los datos
@@ -669,7 +733,7 @@ def checkin_view(df: pd.DataFrame) -> None:
     view = view.rename(columns={
         "nombre_jugadora": "Jugadora",
         "fecha_hora": "Fecha",
-        "periodizacion_tactica": "Periodización",
+        "periodizacion_tactica": "Matchday",
         "recuperacion": "Recuperación",
         "fatiga": "Fatiga",
         "sueno": "Sueño",
@@ -742,14 +806,19 @@ def checkin_view(df: pd.DataFrame) -> None:
         if metric_opt not in plot_src.columns or "nombre_jugadora" not in plot_src.columns:
             st.info("No hay datos suficientes para graficar.")
             return
-        plot_src = plot_src[["nombre_jugadora", metric_opt]].dropna()
+        # Mantener PT si existe
+        cols_use = ["nombre_jugadora", metric_opt] + (["periodizacion_tactica"] if "periodizacion_tactica" in plot_src.columns else [])
+        plot_src = plot_src[cols_use].dropna(subset=[metric_opt])
         plot_src[metric_opt] = pd.to_numeric(plot_src[metric_opt], errors="coerce")
-        plot_src = plot_src.dropna()
+        plot_src = plot_src.dropna(subset=[metric_opt])
         if plot_src.empty:
             st.info("No hay valores para la métrica seleccionada.")
             return
         # Agregar por jugadora por si hubiese múltiples registros; tomar media por jugadora el día
         g = plot_src.groupby("nombre_jugadora", as_index=False)[metric_opt].mean().rename(columns={metric_opt: "valor"})
+        if "periodizacion_tactica" in plot_src.columns:
+            pt_per_player = plot_src.groupby("nombre_jugadora", as_index=False)["periodizacion_tactica"].mean().rename(columns={"periodizacion_tactica": "pt"})
+            g = g.merge(pt_per_player, on="nombre_jugadora", how="left")
         # Orden
         ascending = (sort_order == "Ascendente")
         if sort_key == "Valor":
@@ -762,7 +831,11 @@ def checkin_view(df: pd.DataFrame) -> None:
         chart = alt.Chart(g).encode(
             x=alt.X("nombre_jugadora:N", title="Jugadora", sort=g["nombre_jugadora"].tolist()),
             y=alt.Y("valor:Q", title=f"{metric_opt.capitalize()} (1-5)"),
-            tooltip=["nombre_jugadora:N", alt.Tooltip("valor:Q", format=".2f", title="Valor")],
+            tooltip=[
+                "nombre_jugadora:N",
+                alt.Tooltip("valor:Q", format=".2f", title="Valor"),
+                (alt.Tooltip("pt:Q", title="PT") if "pt" in g.columns else alt.Tooltip("valor:Q", title="")),
+            ],
         )
         bars = chart.mark_bar(color=BRAND_PRIMARY)
         if team_avg is not None:
@@ -774,7 +847,7 @@ def checkin_view(df: pd.DataFrame) -> None:
         st.info("No se pudo renderizar la gráfica por jugadora.")
 
     # Downloads
-    sst.divider()
+    st.divider()
     c1, c2 = st.columns(2)
     export_df = view.copy()
     # Stringify list column for CSV/JSONL
@@ -812,228 +885,6 @@ def checkin_view(df: pd.DataFrame) -> None:
             st.dataframe(pd.DataFrame({"Jugadora": missing}).sort_values("Jugadora"), use_container_width=True)
         else:
             st.success("Todas las jugadoras seleccionadas respondieron en la fecha.")
-
-# def individual_report_view(df: pd.DataFrame) -> None:
-#     #st.subheader("Reporte individual")
-#     if df is None or df.empty:
-#         st.info("No hay registros aún.")
-#         return
-#     d = df.copy()
-#     # Asegurar columnas de fecha
-#     if "fecha" not in d.columns and "fecha_hora" in d.columns:
-#         d["fecha"] = pd.to_datetime(d["fecha_hora"], errors="coerce")
-#     if "fecha_dia" not in d.columns and "fecha" in d.columns:
-#         d["fecha_dia"] = d["fecha"].dt.date
-
-#     jugadores = (
-#         sorted(d["nombre_jugadora"].dropna().astype(str).unique().tolist())
-#         if "nombre_jugadora" in d.columns
-#         else []
-#     )
-#     if not jugadores:
-#         st.info("No hay jugadoras en los registros.")
-#         return
-
-#     c1, c2 = st.columns([1, 1])
-#     with c1:
-#         player = st.selectbox("Jugadora", options=jugadores, index=0)
-#     with c2:
-#         # Rango de fechas predeterminado al rango completo de la jugadora
-#         d_player = d[d["nombre_jugadora"].astype(str) == str(player)]
-#         if "fecha_dia" in d_player.columns and not d_player["fecha_dia"].isna().all():
-#             min_date = d_player["fecha_dia"].min()
-#             max_date = d_player["fecha_dia"].max()
-#             start, end = st.date_input("Rango de fechas", value=(min_date, max_date), min_value=min_date, max_value=max_date)
-#         else:
-#             start = end = None
-
-#     # Filtrar por jugadora y rango
-#     d = d_player.copy()
-#     if start and end and "fecha_dia" in d.columns:
-#         mask = (d["fecha_dia"] >= start) & (d["fecha_dia"] <= end)
-#         d = d[mask]
-
-#     if d.empty:
-#         st.info("No hay registros para los filtros seleccionados.")
-#         return
-
-#     st.subheader("Resumen")
-#     # Check-in: medias por métrica 1..5
-#     checkin_fields = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
-#     means = {k: float(pd.to_numeric(d[k], errors="coerce").mean()) if k in d.columns else None for k in checkin_fields}
-    
-#     #colA, colB, colC, colD, colE = st.columns(5)
-#     m_cols = st.columns(5)
-#     with m_cols[0]:
-#         st.metric("Recuperación media", f"{means.get('recuperacion', 0):.2f}" if means.get('recuperacion') is not None else "-")
-#     with m_cols[1]:
-#         st.metric("Fatiga media", f"{means.get('fatiga', 0):.2f}" if means.get('fatiga') is not None else "-")
-#     with m_cols[2]:
-#         st.metric("Sueño medio", f"{means.get('sueno', 0):.2f}" if means.get('sueno') is not None else "-")
-#     with m_cols[3]:
-#         st.metric("Estrés medio", f"{means.get('stress', 0):.2f}" if means.get('stress') is not None else "-")
-#     with m_cols[4]:
-#         st.metric("Dolor medio", f"{means.get('dolor', 0):.2f}" if means.get('dolor') is not None else "-")
-
-#     # Check-out: totales / medias
-#     #m_cols = st.columns(3)
-#     with m_cols[0]:
-#         ua_total = float(pd.to_numeric(d.get("ua"), errors="coerce").sum()) if "ua" in d.columns else None
-#         st.metric("UA total", f"{ua_total:.0f}" if ua_total is not None else "-")
-#     with m_cols[1]:
-#         min_total = float(pd.to_numeric(d.get("minutos_sesion"), errors="coerce").sum()) if "minutos_sesion" in d.columns else None
-#         st.metric("Minutos totales", f"{min_total:.0f}" if min_total is not None else "-")
-#     with m_cols[2]:
-#         rpe_media = float(pd.to_numeric(d.get("rpe"), errors="coerce").mean()) if "rpe" in d.columns else None
-#         st.metric("RPE medio", f"{rpe_media:.2f}" if rpe_media is not None else "-")
-
-#     # Gráficas
-#     st.divider()
-#     st.subheader("Evolución en el tiempo")
-#     # Preparar dataframe temporal
-#     t = d.copy()
-#     t = t.sort_values("fecha") if "fecha" in t.columns else t
-#     if "fecha" not in t.columns:
-#         st.info("No hay fechas válidas para graficar.")
-#         return
-#     # Check-in: barras por métrica (selector) + línea de promedio del equipo + barras de desviación estándar (rolling 7d)
-#     ci_metrics = [c for c in checkin_fields if c in t.columns]
-#     if ci_metrics:
-#         sel_col1, _ = st.columns([1, 3])
-#         with sel_col1:
-#             ci_metric = st.selectbox(
-#                 "Métrica de Check-in",
-#                 options=ci_metrics,
-#                 format_func=lambda x: {"recuperacion": "Recuperación", "fatiga": "Fatiga", "sueno": "Sueño", "stress": "Estrés", "dolor": "Dolor"}.get(x, x),
-#             )
-
-#         # Serie de la jugadora
-#         df_p = t[["fecha", ci_metric]].dropna().copy()
-#         df_p[ci_metric] = pd.to_numeric(df_p[ci_metric], errors="coerce")
-#         df_p = df_p.dropna()
-#         if not df_p.empty:
-#             # Rolling std 7 días (mínimo 2)
-#             df_p = df_p.sort_values("fecha")
-#             df_p["std7"] = df_p[ci_metric].rolling(7, min_periods=2).std()
-#             df_p["yLow"] = (df_p[ci_metric] - df_p["std7"]).clip(lower=1, upper=5)
-#             df_p["yHigh"] = (df_p[ci_metric] + df_p["std7"]).clip(lower=1, upper=5)
-
-#             # Promedio del equipo por día en el mismo rango (manejo robusto de fechas)
-#             team_all = df.copy()
-#             if "fecha" not in team_all.columns and "fecha_hora" in team_all.columns:
-#                 team_all["fecha"] = pd.to_datetime(team_all["fecha_hora"], errors="coerce")
-#             if "fecha" in team_all.columns:
-#                 team_all = team_all.dropna(subset=["fecha"]).copy()
-#                 if start and end:
-#                     team_all = team_all[(team_all["fecha"].dt.date >= start) & (team_all["fecha"].dt.date <= end)]
-#                 team_all[ci_metric] = pd.to_numeric(team_all.get(ci_metric), errors="coerce")
-#                 team_all["fecha_day"] = team_all["fecha"].dt.date
-#                 team_all = team_all.dropna(subset=["fecha_day"])  # seguridad
-#                 team_daily = team_all.groupby("fecha_day", as_index=False)[ci_metric].mean().rename(columns={ci_metric: "team_avg"})
-#                 team_daily["fecha"] = pd.to_datetime(team_daily["fecha_day"])
-#             else:
-#                 team_daily = pd.DataFrame(columns=["fecha", "team_avg"])  
-
-#             plot_df = df_p.merge(team_daily[["fecha", "team_avg"]], on="fecha", how="left")
-
-#             base_ci = alt.Chart(plot_df).encode(x=alt.X("fecha:T", title="Fecha"))
-#             bars_ci = base_ci.mark_bar(color=BRAND_PRIMARY).encode(y=alt.Y(f"{ci_metric}:Q", title="Check-in (1-5)"), tooltip=["fecha:T", alt.Tooltip(f"{ci_metric}:Q", format=".2f", title="Valor jugadora"), alt.Tooltip("team_avg:Q", format=".2f", title="Promedio equipo")])
-#             err_ci = base_ci.mark_errorbar(color=BRAND_TEXT, opacity=0.8).encode(y=alt.Y("yLow:Q"), y2="yHigh:Q")
-#             line_ci = base_ci.mark_line(color=BRAND_TEXT).encode(y=alt.Y("team_avg:Q", title="Promedio equipo"))
-#             st.altair_chart(alt.layer(bars_ci, err_ci, line_ci).properties(height=280), use_container_width=True)
-
-#     # Check-out: UA, RPE, minutos en líneas separadas
-#     co_cols = st.columns(3)
-#     with co_cols[0]:
-#         if "ua" in t.columns:
-#             co_ua = t[["fecha", "ua"]].copy()
-#             co_ua["ua"] = pd.to_numeric(co_ua["ua"], errors="coerce")
-#             co_ua = co_ua.dropna().sort_values("fecha")
-#             co_ua["std7"] = co_ua["ua"].rolling(7, min_periods=2).std()
-#             co_ua["yLow"] = (co_ua["ua"] - co_ua["std7"]).clip(lower=0)
-#             co_ua["yHigh"] = (co_ua["ua"] + co_ua["std7"]).clip(lower=0)
-
-#             team_all = df.copy()
-#             if "fecha" not in team_all.columns and "fecha_hora" in team_all.columns:
-#                 team_all["fecha"] = pd.to_datetime(team_all["fecha_hora"], errors="coerce")
-#             if "fecha" in team_all.columns:
-#                 team_all = team_all.dropna(subset=["fecha"]).copy()
-#                 if start and end:
-#                     team_all = team_all[(team_all["fecha"].dt.date >= start) & (team_all["fecha"].dt.date <= end)]
-#                 team_all["ua"] = pd.to_numeric(team_all.get("ua"), errors="coerce")
-#                 team_all["fecha_day"] = team_all["fecha"].dt.date
-#                 team_all = team_all.dropna(subset=["fecha_day"])  
-#                 team_daily = team_all.groupby("fecha_day", as_index=False)["ua"].mean().rename(columns={"ua": "team_avg"})
-#                 team_daily["fecha"] = pd.to_datetime(team_daily["fecha_day"])
-#             else:
-#                 team_daily = pd.DataFrame(columns=["fecha", "team_avg"])  
-#             plot_df = co_ua.merge(team_daily[["fecha", "team_avg"]], on="fecha", how="left")
-
-#             base = alt.Chart(plot_df).encode(x=alt.X("fecha:T", title="Fecha"))
-#             bars = base.mark_bar(color=BRAND_PRIMARY).encode(y=alt.Y("ua:Q", title="UA"), tooltip=["fecha:T", alt.Tooltip("ua:Q", format=".0f", title="UA jugadora"), alt.Tooltip("team_avg:Q", format=".0f", title="Promedio equipo")])
-#             err = base.mark_errorbar(color=BRAND_TEXT, opacity=0.8).encode(y="yLow:Q", y2="yHigh:Q")
-#             line = base.mark_line(color=BRAND_TEXT).encode(y=alt.Y("team_avg:Q", title="Promedio equipo"))
-#             st.altair_chart(alt.layer(bars, err, line).properties(height=220), use_container_width=True)
-#     with co_cols[1]:
-#         if "rpe" in t.columns:
-#             co_rpe = t[["fecha", "rpe"]].copy()
-#             co_rpe["rpe"] = pd.to_numeric(co_rpe["rpe"], errors="coerce")
-#             co_rpe = co_rpe.dropna().sort_values("fecha")
-#             co_rpe["std7"] = co_rpe["rpe"].rolling(7, min_periods=2).std()
-#             co_rpe["yLow"] = (co_rpe["rpe"] - co_rpe["std7"]).clip(lower=1, upper=10)
-#             co_rpe["yHigh"] = (co_rpe["rpe"] + co_rpe["std7"]).clip(lower=1, upper=10)
-
-#             team_all = df.copy()
-#             if "fecha" not in team_all.columns and "fecha_hora" in team_all.columns:
-#                 team_all["fecha"] = pd.to_datetime(team_all["fecha_hora"], errors="coerce")
-#             if "fecha" in team_all.columns:
-#                 team_all = team_all.dropna(subset=["fecha"]).copy()
-#                 if start and end:
-#                     team_all = team_all[(team_all["fecha"].dt.date >= start) & (team_all["fecha"].dt.date <= end)]
-#                 team_all["rpe"] = pd.to_numeric(team_all.get("rpe"), errors="coerce")
-#                 team_all["fecha_day"] = team_all["fecha"].dt.date
-#                 team_all = team_all.dropna(subset=["fecha_day"])  
-#                 team_daily = team_all.groupby("fecha_day", as_index=False)["rpe"].mean().rename(columns={"rpe": "team_avg"})
-#                 team_daily["fecha"] = pd.to_datetime(team_daily["fecha_day"])
-#             else:
-#                 team_daily = pd.DataFrame(columns=["fecha", "team_avg"])  
-#             plot_df = co_rpe.merge(team_daily[["fecha", "team_avg"]], on="fecha", how="left")
-
-#             base = alt.Chart(plot_df).encode(x=alt.X("fecha:T", title="Fecha"))
-#             bars = base.mark_bar(color=BRAND_PRIMARY).encode(y=alt.Y("rpe:Q", title="RPE"), tooltip=["fecha:T", alt.Tooltip("rpe:Q", format=".2f", title="RPE jugadora"), alt.Tooltip("team_avg:Q", format=".2f", title="Promedio equipo")])
-#             err = base.mark_errorbar(color=BRAND_TEXT, opacity=0.8).encode(y="yLow:Q", y2="yHigh:Q")
-#             line = base.mark_line(color=BRAND_TEXT).encode(y=alt.Y("team_avg:Q", title="Promedio equipo"))
-#             st.altair_chart(alt.layer(bars, err, line).properties(height=220), use_container_width=True)
-#     with co_cols[2]:
-#         if "minutos_sesion" in t.columns:
-#             co_min = t[["fecha", "minutos_sesion"]].copy()
-#             co_min["minutos_sesion"] = pd.to_numeric(co_min["minutos_sesion"], errors="coerce")
-#             co_min = co_min.dropna().sort_values("fecha")
-#             co_min["std7"] = co_min["minutos_sesion"].rolling(7, min_periods=2).std()
-#             co_min["yLow"] = (co_min["minutos_sesion"] - co_min["std7"]).clip(lower=0)
-#             co_min["yHigh"] = (co_min["minutos_sesion"] + co_min["std7"]).clip(lower=0)
-
-#             team_all = df.copy()
-#             if "fecha" not in team_all.columns and "fecha_hora" in team_all.columns:
-#                 team_all["fecha"] = pd.to_datetime(team_all["fecha_hora"], errors="coerce")
-#             if "fecha" in team_all.columns:
-#                 team_all = team_all.dropna(subset=["fecha"]).copy()
-#                 if start and end:
-#                     team_all = team_all[(team_all["fecha"].dt.date >= start) & (team_all["fecha"].dt.date <= end)]
-#                 team_all["minutos_sesion"] = pd.to_numeric(team_all.get("minutos_sesion"), errors="coerce")
-#                 team_all["fecha_day"] = team_all["fecha"].dt.date
-#                 team_all = team_all.dropna(subset=["fecha_day"])  
-#                 team_daily = team_all.groupby("fecha_day", as_index=False)["minutos_sesion"].mean().rename(columns={"minutos_sesion": "team_avg"})
-#                 team_daily["fecha"] = pd.to_datetime(team_daily["fecha_day"])
-#             else:
-#                 team_daily = pd.DataFrame(columns=["fecha", "team_avg"])  
-#             plot_df = co_min.merge(team_daily[["fecha", "team_avg"]], on="fecha", how="left")
-
-#             base = alt.Chart(plot_df).encode(x=alt.X("fecha:T", title="Fecha"))
-#             bars = base.mark_bar(color=BRAND_PRIMARY).encode(y=alt.Y("minutos_sesion:Q", title="Minutos"), tooltip=["fecha:T", alt.Tooltip("minutos_sesion:Q", format=".0f", title="Minutos jugadora"), alt.Tooltip("team_avg:Q", format=".0f", title="Promedio equipo")])
-#             err = base.mark_errorbar(color=BRAND_TEXT, opacity=0.8).encode(y="yLow:Q", y2="yHigh:Q")
-#             line = base.mark_line(color=BRAND_TEXT).encode(y=alt.Y("team_avg:Q", title="Promedio equipo"))
-#             st.altair_chart(alt.layer(bars, err, line).properties(height=220), use_container_width=True)
 
 def _exportable_chart(chart: alt.Chart, key: str, height: int = 300):
     """Render Altair chart with a small export UI (PNG) via vega-embed actions.
@@ -1333,7 +1184,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
     add_if("minutos_sesion")
     add_if("observacion")
     add_if("ICS")
-    
+
     view = t[cols].copy()
 
     # Formateos ligeros
@@ -1350,6 +1201,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
 
     # Descargas
     st.divider()
+
     c1, c2 = st.columns(2)
     with c1:
         csv_bytes = view.to_csv(index=False).encode("utf-8")
@@ -1389,13 +1241,13 @@ def risk_view(df: pd.DataFrame) -> None:
                 if "nombre_jugadora" in d.columns
                 else []
             )
-            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[], placeholder="Selecciona una o mas jugadoras")
         with c3:
             turnos = ["Turno 1", "Turno 2", "Turno 3"]
             if "turno" in d.columns:
                 present = d["turno"].dropna().astype(str).unique().tolist()
                 turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
-            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[], placeholder="Selecciona un o mas turnos")
         with c4:
             w_rpe = st.slider("Peso RPE/ACWR", min_value=0.0, max_value=1.0, value=0.5, step=0.05)
             w_well = 1.0 - w_rpe

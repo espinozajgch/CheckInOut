@@ -1,7 +1,7 @@
 import streamlit as st
+
 import jwt
 import time
-#from streamlit_cookies_manager import EncryptedCookieManager
 from st_cookies_manager import EncryptedCookieManager
 
 # # --- CONFIG JWT ---
@@ -19,6 +19,7 @@ def init_app_state():
     ensure_session_defaults()
     if "flash" not in st.session_state:
         st.session_state["flash"] = None
+
 
 def ensure_session_defaults() -> None:
     """Initialize session state defaults for authentication and UI."""
