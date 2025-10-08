@@ -92,3 +92,19 @@ Si ya existe un registro para esa combinación, al guardar se actualiza en lugar
 
 - Vista de una sola página, previsualización antes de guardar y botón deshabilitado hasta cumplir validaciones.
 - Tras guardar, se limpia el formulario (recarga de la app).
+
+## Contributing
+
+- Haz un fork del repositorio.
+
+- Configuración de remoto
+
+```bash
+git remote add upstream https://github.com/lucbra21/DuxLesiones.git
+git remote -v
+```
+
+- Crea una rama nueva para tus cambios
+- Realiza tus modificaciones y haz commit
+- Haz push a tu fork
+- Abre un Pull Request al repositorio original
