@@ -1,4 +1,3 @@
-from typing import Dict, Tuple
 from datetime import date
 
 import pandas as pd
@@ -7,7 +6,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from .io_files import get_template_bytes, load_jugadoras
-from .schema import validate_checkin, validate_checkout
+from .schema import validate_checkin
 from .metrics import compute_rpe_metrics, RPEFilters
 
 # Brand colors (Dux Logroño): grana primary and black text
@@ -40,14 +39,17 @@ def _exportable_chart(chart: alt.Chart, key: str, height: int = 300):
 
 
 def selection_header(jug_df: pd.DataFrame):
-    st.subheader("Selección inicial")
+
     col1, col2, col3 = st.columns(3)
     with col1:
         jugadora_opt = None
         if jug_df is not None and len(jug_df) > 0:
-            names = jug_df["nombre_jugadora"].astype(str).tolist()
-            selected_name = st.selectbox("Jugadora", options=["- Selecciona -"] + names, index=0)
-            if selected_name != "- Selecciona -":
+            names = sorted(jug_df["nombre_jugadora"].astype(str).tolist())
+            selected_name = st.selectbox("Jugadora", names, index=None, placeholder="Seleccione una jugadora")
+            
+            #st.text(f"selected_name {selected_name}")
+            #options=["- Selecciona -"] + 
+            if selected_name :
                 row = jug_df[jug_df["nombre_jugadora"].astype(str) == selected_name].iloc[0]
                 jugadora_opt = {
                     "id_jugadora": row["id_jugadora"],
@@ -56,32 +58,32 @@ def selection_header(jug_df: pd.DataFrame):
         else:
             st.warning("No hay jugadoras cargadas.")
     with col2:
-        tipo = st.radio("Tipo de registro", options=["Check-in", "Check-out"], horizontal=True)
-    with col3:
         turno = st.selectbox(
             "Turno",
             options=["Turno 1", "Turno 2", "Turno 3"],
             index=0,
-            help="Selecciona el turno de la sesión",
+            #help="Selecciona el turno de la sesión",
         )
+    with col3:
+        tipo = st.radio("Tipo de registro", options=["Check-in", "Check-out"], horizontal=True)
+
     return jugadora_opt, tipo, turno
 
-
-def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str]:
-    st.subheader("Check-in (preentrenamiento)")
-
+def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str]:
+    
     with st.container():
+        st.markdown("#### **Check-in (pre-entrenamiento)**")
         c1, c2, c3, c4, c5 = st.columns(5)
         with c1:
-            record["recuperacion"] = st.number_input("Recuperación (1-5)", min_value=1, max_value=5, step=1)
+            record["recuperacion"] = st.number_input("Recuperación :red[(1-5)]", min_value=1, max_value=5, step=1)
         with c2:
-            record["fatiga"] = st.number_input("Fatiga (1-5)", min_value=1, max_value=5, step=1)
+            record["fatiga"] = st.number_input("Fatiga :red[(1-5)]", min_value=1, max_value=5, step=1)
         with c3:
-            record["sueno"] = st.number_input("Sueño (1-5)", min_value=1, max_value=5, step=1)
+            record["sueno"] = st.number_input("Sueño :red[(1-5)]", min_value=1, max_value=5, step=1)
         with c4:
-            record["stress"] = st.number_input("Estrés (1-5)", min_value=1, max_value=5, step=1, key="stress_input")
+            record["stress"] = st.number_input("Estrés :red[(1-5)]", min_value=1, max_value=5, step=1, key="stress_input")
         with c5:
-            record["dolor"] = st.number_input("Dolor (1-5)", min_value=1, max_value=5, step=1)
+            record["dolor"] = st.number_input("Dolor :red[(1-5)]", min_value=1, max_value=5, step=1)
 
         if int(record.get("dolor", 0)) > 1:
             opciones = partes_df["parte"].astype(str).tolist() if partes_df is not None else []
@@ -91,7 +93,8 @@ def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str
         else:
             record["partes_cuerpo_dolor"] = []
 
-    st.markdown("---")
+
+    st.divider()
     st.caption("Campos opcionales")
 
     colA, colB = st.columns([2, 1])
@@ -102,32 +105,57 @@ def checkin_form(record: Dict, partes_df: pd.DataFrame) -> Tuple[Dict, bool, str
         record["observacion"] = st.text_area("Observación", value="")
     with colB:
         record["en_periodo"] = st.checkbox("En periodo")
+        
+        colA, colB = st.columns([2, 1])
+        with colA:
+            record["periodizacion_tactica"] = st.slider(
+                "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
+            )
 
-    is_valid, msg = validate_checkin(record)
+        record["observacion"] = st.text_area("Observación", value="")
+        # with colB:
+        #     record["en_periodo"] = st.checkbox("En periodo")
+
+        is_valid, msg = validate_checkin(record)
     return record, is_valid, msg
 
+def checkout_form(record: dict) -> tuple[dict, bool, str]:
+    
+    with st.container():
+        st.markdown("#### **Check-out (post-entrenamiento)**")
 
-def checkout_form(record: Dict) -> Tuple[Dict, bool, str]:
-    st.subheader("Check-out (postentrenamiento)")
+        col1, col2, col3,_, _ = st.columns([.5, .5, .5, 1,1])
+        with col1:
+            record["minutos_sesion"] = st.number_input("Minutos de la sesión", min_value=0, step=1)
+        with col2:
+            record["rpe"] = st.number_input("RPE :red[(1-10)]", min_value=1, max_value=10, step=1)
+        with col3:
+            # Auto-calc UA
+            minutos = int(record.get("minutos_sesion") or 0)
+            rpe = int(record.get("rpe") or 0)
+            record["ua"] = int(rpe * minutos) if minutos > 0 and rpe > 0 else None
+            st.metric("UA (RPE x minutos)", value=record["ua"] if record["ua"] is not None else "-")
 
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col1:
-        record["minutos_sesion"] = st.number_input("Minutos de la sesión", min_value=0, step=1)
-    with col2:
-        record["rpe"] = st.number_input("RPE (1-10)", min_value=1, max_value=10, step=1)
-    with col3:
-        # Auto-calc UA
-        minutos = int(record.get("minutos_sesion") or 0)
-        rpe = int(record.get("rpe") or 0)
-        record["ua"] = int(rpe * minutos) if minutos > 0 and rpe > 0 else None
-        st.metric("UA (RPE × minutos)", value=record["ua"] if record["ua"] is not None else "-")
+        is_valid, msg = validate_checkout(record)
+        return record, is_valid, msg
 
-    is_valid, msg = validate_checkout(record)
-    return record, is_valid, msg
+def validate_checkout(record: dict) -> tuple[bool, str]:
+    # Minutes > 0
+    minutos = record.get("minutos_sesion")
+    if minutos is None or int(minutos) <= 0:
+        return False, "Los minutos de la sesión deben ser un entero positivo."
+    # RPE 1..10
+    rpe = record.get("rpe")
+    if rpe is None or not (1 <= int(rpe) <= 10):
+        return False, "El RPE debe estar entre 1 y 10."
+    # UA computed
+    ua = record.get("ua")
+    if ua is None:
+        return False, "UA no calculado."
+    return True, ""
 
-
-def preview_record(record: Dict) -> None:
-    st.subheader("Previsualización")
+def preview_record(record: dict) -> None:
+    #st.subheader("Previsualización")
     # Header with key fields
     jug = record.get("nombre_jugadora", "-")
     fecha = record.get("fecha_hora", "-")
@@ -156,7 +184,7 @@ def show_missing_file_help(title: str, description: str, template_type: str) -> 
 
 
 def responses_view(df: pd.DataFrame) -> None:
-    st.subheader("Respuestas registradas")
+    #st.subheader("Respuestas registradas")
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -207,7 +235,7 @@ def responses_view(df: pd.DataFrame) -> None:
     st.dataframe(to_show, use_container_width=True)
 
     # Downloads
-    st.markdown("---")
+    st.divider()
     c1, c2 = st.columns(2)
     # Prepare export-friendly DataFrame: stringify timestamps/dates and replace NaNs
     export_df = filtered.copy()
@@ -242,7 +270,7 @@ def responses_view(df: pd.DataFrame) -> None:
 
 
 def rpe_view(df: pd.DataFrame) -> None:
-    st.subheader("RPE / Cargas")
+    #st.subheader("RPE / Cargas")
     if df is None or df.empty:
         st.info("No hay registros aún (se requieren Check-out con UA calculado).")
         return
@@ -254,32 +282,33 @@ def rpe_view(df: pd.DataFrame) -> None:
     else:
         min_date = max_date = None
 
-    with st.expander("Filtros", expanded=True):
-        c1, c2, c3 = st.columns([1, 1, 1])
-        with c1:
-            jugadores = (
-                sorted(df["nombre_jugadora"].dropna().astype(str).unique().tolist())
-                if "nombre_jugadora" in df.columns
-                else []
+    #with st.expander("Filtros", expanded=True):
+    c1, c2, c3 = st.columns([1, 1, 1])
+    with c1:
+        jugadores = (
+            sorted(df["nombre_jugadora"].dropna().astype(str).unique().tolist())
+            if "nombre_jugadora" in df.columns
+            else []
+        )
+        jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[], placeholder="Selecciona una o mas jugadoras")
+    with c2:
+        turnos = ["Turno 1", "Turno 2", "Turno 3"]
+        if "turno" in df.columns:
+            present = df["turno"].dropna().astype(str).unique().tolist()
+            turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
+        turno_sel = st.multiselect("Turno(s)", options=turnos, default=[], placeholder="Selecciona un o mas turnos")
+    with c3:
+        if min_date and max_date:
+            start, end = st.date_input(
+                "Rango de fechas", value=(min_date, max_date), min_value=min_date, max_value=max_date
             )
-            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
-        with c2:
-            turnos = ["Turno 1", "Turno 2", "Turno 3"]
-            if "turno" in df.columns:
-                present = df["turno"].dropna().astype(str).unique().tolist()
-                turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
-            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
-        with c3:
-            if min_date and max_date:
-                start, end = st.date_input(
-                    "Rango de fechas", value=(min_date, max_date), min_value=min_date, max_value=max_date
-                )
-            else:
-                start, end = None, None
+        else:
+            start, end = None, None
 
     flt = RPEFilters(jugadores=jug_sel or None, turnos=turno_sel or None, start=start, end=end)
     metrics = compute_rpe_metrics(df, flt)
 
+    st.subheader("Resumen")
     # KPIs
     k1, k2, k3, k4 = st.columns(4)
     with k1:
@@ -322,23 +351,25 @@ def rpe_view(df: pd.DataFrame) -> None:
             end_day = daily_tbl["fecha_dia"].max()
         if end_day is not None and "fecha_dia" in d_min.columns:
             minutos_dia = d_min.loc[d_min["fecha_dia"] == end_day, "minutos_sesion"].sum()
-            st.metric("Minutos día", value=(f"{minutos_dia:.0f}" if pd.notna(minutos_dia) else "-"))
+            with k1:
+                st.metric("Minutos día", value=(f"{minutos_dia:.0f}" if pd.notna(minutos_dia) else "-"))
     except Exception:
         pass
 
-    c5, c6, c7 = st.columns(3)
-    with c5:
+    #c5, c6, c7 = st.columns(3)
+    with k2:
         st.metric("ACWR (aguda:crónica)", value=(f"{metrics['acwr']:.2f}" if metrics["acwr"] is not None else "-"))
-    with c6:
+    with k3:
         st.metric("Adaptación", value=(f"{metrics['adaptacion']:.2f}" if metrics["adaptacion"] is not None else "-"))
-    with c7:
+    with k4:
         st.metric("Variabilidad semana (std)", value=(f"{metrics['variabilidad_semana']:.2f}" if metrics["variabilidad_semana"] is not None else "-"))
 
-    st.markdown("---")
+    st.divider()
     st.caption("Cargas diarias (UA total por día)")
     daily = metrics.get("daily_table")
     if isinstance(daily, pd.DataFrame) and not daily.empty:
         st.dataframe(daily.sort_values("fecha_dia"), use_container_width=True)
+        st.divider()
         try:
             chart_df = daily.copy()
             chart_df = chart_df.rename(columns={"fecha_dia": "Fecha", "ua_total": "UA"})
@@ -350,7 +381,7 @@ def rpe_view(df: pd.DataFrame) -> None:
         st.info("No hay datos de Check-out con UA en el rango/criterios seleccionados.")
 
     # --- Gráficas por jugadora ---
-    st.markdown("---")
+    st.divider()
     st.subheader("Gráficas por jugadora")
     # Controles de visualización y orden
     ctrl1, ctrl2, ctrl3 = st.columns([1, 1, 1])
@@ -567,7 +598,7 @@ def rpe_view(df: pd.DataFrame) -> None:
 
 
 def checkin_view(df: pd.DataFrame) -> None:
-    st.subheader("Respuestas Check-in por fecha (plantel)")
+    
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -602,15 +633,15 @@ def checkin_view(df: pd.DataFrame) -> None:
                 if "nombre_jugadora" in d.columns
                 else []
             )
-            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[], placeholder="Selecciona una o mas")
         with f3:
             turnos = ["Turno 1", "Turno 2", "Turno 3"]
             if "turno" in d.columns:
                 present = d["turno"].dropna().astype(str).unique().tolist()
                 turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
-            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[], placeholder="Selecciona uno o mas")
         with f4:
-            ics_sel = st.multiselect("ICS", options=["ROJO", "AMARILLO", "VERDE"], default=[])
+            ics_sel = st.multiselect("ICS", options=["ROJO", "AMARILLO", "VERDE"], default=[], placeholder="Selecciona uno o mas")
 
     day_mask = d["fecha"].dt.date == sel_date
     day_df = d[day_mask].copy()
@@ -721,11 +752,11 @@ def checkin_view(df: pd.DataFrame) -> None:
         c_verde = int(counts.get("VERDE", 0))
         mc1, mc2, mc3 = st.columns(3)
         with mc1:
-            st.metric("ROJO", value=c_rojo)
+            st.metric("Rojo", value=c_rojo, border=True)
         with mc2:
-            st.metric("AMARILLO", value=c_amarillo)
+            st.metric("Amarillo", value=c_amarillo, border=True)
         with mc3:
-            st.metric("VERDE", value=c_verde)
+            st.metric("Verde", value=c_verde, border=True)
 
     # Sort by ICS severity then Jugadora
     if "ICS" in view.columns:
@@ -754,7 +785,7 @@ def checkin_view(df: pd.DataFrame) -> None:
         st.dataframe(view, use_container_width=True)
 
     # --- Gráfica por jugadora (día seleccionado) con línea de promedio del equipo ---
-    st.markdown("---")
+    st.divider()
     st.subheader("Gráfica por jugadora (Check-in)")
     # Controles: métrica, ordenación
     cc1, cc2, cc3 = st.columns([1, 1, 1])
@@ -816,7 +847,7 @@ def checkin_view(df: pd.DataFrame) -> None:
         st.info("No se pudo renderizar la gráfica por jugadora.")
 
     # Downloads
-    st.markdown("---")
+    st.divider()
     c1, c2 = st.columns(2)
     export_df = view.copy()
     # Stringify list column for CSV/JSONL
@@ -839,7 +870,7 @@ def checkin_view(df: pd.DataFrame) -> None:
         )
 
     # Non-responding players for the selected date (considering optional Jugadora filter)
-    st.markdown("---")
+    st.divider()
     st.subheader("Jugadoras que no respondieron")
     jug_df, jug_err = load_jugadoras()
     if jug_err or jug_df is None or jug_df.empty:
@@ -855,9 +886,31 @@ def checkin_view(df: pd.DataFrame) -> None:
         else:
             st.success("Todas las jugadoras seleccionadas respondieron en la fecha.")
 
+def _exportable_chart(chart: alt.Chart, key: str, height: int = 300):
+    """Render Altair chart with a small export UI (PNG) via vega-embed actions.
+
+    This renders an additional lightweight copy of the chart below the Streamlit chart
+    that exposes the vega-embed toolbar with 'Export' enabled.
+    """
+    try:
+        spec = chart.to_json()
+        html = f"""
+        <div id="{key}" style="width:100%"></div>
+        <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+        <script>
+          const spec = {spec};
+          vegaEmbed('#{key}', spec, {{ actions: {{ export: true, source: false, editor: false, compiled: false }} }});
+        </script>
+        """
+        components.html(html, height=height + 60)
+    except Exception:
+        # Fallback: no-op if export failed
+        pass
 
 def individual_report_view(df: pd.DataFrame) -> None:
-    st.subheader("Reporte individual")
+    
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -900,21 +953,24 @@ def individual_report_view(df: pd.DataFrame) -> None:
         st.info("No hay registros para los filtros seleccionados.")
         return
 
-    # Resumen rápido
-    st.markdown("---")
     st.subheader("Resumen")
     # Check-in: medias por métrica 1..5
     checkin_fields = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
     means = {k: float(pd.to_numeric(d[k], errors="coerce").mean()) if k in d.columns else None for k in checkin_fields}
-    colA, colB, colC, colD, colE = st.columns(5)
-    colA.metric("Recuperación media", f"{means.get('recuperacion', 0):.2f}" if means.get('recuperacion') is not None else "-")
-    colB.metric("Fatiga media", f"{means.get('fatiga', 0):.2f}" if means.get('fatiga') is not None else "-")
-    colC.metric("Sueño medio", f"{means.get('sueno', 0):.2f}" if means.get('sueno') is not None else "-")
-    colD.metric("Estrés medio", f"{means.get('stress', 0):.2f}" if means.get('stress') is not None else "-")
-    colE.metric("Dolor medio", f"{means.get('dolor', 0):.2f}" if means.get('dolor') is not None else "-")
+    m_cols = st.columns(5)
+    with m_cols[0]:
+        st.metric("Recuperación media", f"{means.get('recuperacion', 0):.2f}" if means.get('recuperacion') is not None else "-")
+    with m_cols[1]:
+        st.metric("Fatiga media", f"{means.get('fatiga', 0):.2f}" if means.get('fatiga') is not None else "-")
+    with m_cols[2]:
+        st.metric("Sueño medio", f"{means.get('sueno', 0):.2f}" if means.get('sueno') is not None else "-")
+    with m_cols[3]:
+        st.metric("Estrés medio", f"{means.get('stress', 0):.2f}" if means.get('stress') is not None else "-")
+    with m_cols[4]:
+        st.metric("Dolor medio", f"{means.get('dolor', 0):.2f}" if means.get('dolor') is not None else "-")
 
     # Check-out: totales / medias
-    m_cols = st.columns(3)
+    #m_cols = st.columns(3)
     with m_cols[0]:
         ua_total = float(pd.to_numeric(d.get("ua"), errors="coerce").sum()) if "ua" in d.columns else None
         st.metric("UA total", f"{ua_total:.0f}" if ua_total is not None else "-")
@@ -926,7 +982,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
         st.metric("RPE medio", f"{rpe_media:.2f}" if rpe_media is not None else "-")
 
     # Gráficas (mejoradas)
-    st.markdown("---")
+    st.divider()
     st.subheader("Gráficas")
     t = d.copy()
     if "fecha" in t.columns:
@@ -1033,7 +1089,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
         st.info("Sin datos de Check-in suficientes para graficar.")
 
     # Construir HTML para exportación (PDF/HTML)
-    st.markdown("---")
+    st.divider()
     st.subheader("Exportar reporte")
     try:
         html_bytes = _build_individual_report_html(
@@ -1061,7 +1117,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
         st.info("No se pudo generar el HTML del reporte para exportación.")
 
     # Detalle por fecha (tabla)
-    st.markdown("---")
+    st.divider()
     st.subheader("Detalle por fecha")
     t = d.copy()
     if "fecha" in t.columns:
@@ -1079,6 +1135,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
         if v in (4, 5):
             return "ROJO"
         return ""
+
     def _compute_ics(row: pd.Series) -> str:
         keys = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
         if not all(k in row and pd.notna(row[k]) for k in keys):
@@ -1112,6 +1169,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
     def add_if(col):
         if col in t.columns:
             cols.append(col)
+
     add_if("fecha")
     add_if("turno")
     add_if("periodizacion_tactica")
@@ -1126,6 +1184,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
     add_if("minutos_sesion")
     add_if("observacion")
     add_if("ICS")
+
     view = t[cols].copy()
 
     # Formateos ligeros
@@ -1141,7 +1200,8 @@ def individual_report_view(df: pd.DataFrame) -> None:
     st.dataframe(view, use_container_width=True)
 
     # Descargas
-    st.markdown("---")
+    st.divider()
+
     c1, c2 = st.columns(2)
     with c1:
         csv_bytes = view.to_csv(index=False).encode("utf-8")
@@ -1153,7 +1213,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
         st.download_button("Descargar JSONL (detalle)", data=jsonl_str.encode("utf-8"), file_name=f"reporte_individual_{player}.jsonl", mime="application/json")
 
 def risk_view(df: pd.DataFrame) -> None:
-    st.subheader("Riesgo de lesión (proximidad)")
+    
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -1181,13 +1241,13 @@ def risk_view(df: pd.DataFrame) -> None:
                 if "nombre_jugadora" in d.columns
                 else []
             )
-            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
+            jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[], placeholder="Selecciona una o mas jugadoras")
         with c3:
             turnos = ["Turno 1", "Turno 2", "Turno 3"]
             if "turno" in d.columns:
                 present = d["turno"].dropna().astype(str).unique().tolist()
                 turnos = [t for t in turnos if t in present] or ["Turno 1", "Turno 2", "Turno 3"]
-            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[])
+            turno_sel = st.multiselect("Turno(s)", options=turnos, default=[], placeholder="Selecciona un o mas turnos")
         with c4:
             w_rpe = st.slider("Peso RPE/ACWR", min_value=0.0, max_value=1.0, value=0.5, step=0.05)
             w_well = 1.0 - w_rpe
@@ -1355,13 +1415,14 @@ def risk_view(df: pd.DataFrame) -> None:
     # Mostrar KPIs y tabla
     k1, k2, k3 = st.columns(3)
     with k1:
-        st.metric("Jugadoras", value=len(risk_df))
+        st.metric("Jugadoras", value=len(risk_df), border=True)
     with k2:
-        st.metric("Riesgo medio", value=f"{risk_df['riesgo'].mean():.2f}")
+        st.metric("Riesgo medio", value=f"{risk_df['riesgo'].mean():.2f}", border=True)
     with k3:
         st.metric(
             "% en zona de peligro (ACWR>1.5)",
             value=f"{(risk_df['acwr'] > 1.5).fillna(False).mean() * 100:.0f}%" if 'acwr' in risk_df.columns else "-",
+            border=True
         )
 
     # Ordenar por riesgo
@@ -1384,7 +1445,7 @@ def risk_view(df: pd.DataFrame) -> None:
     st.altair_chart(chart.properties(height=max(200, 24 * len(plot))), use_container_width=True)
 
     # Tabla detallada
-    st.markdown("---")
+    st.divider()
     show_tbl = plot[["nombre_jugadora", "acwr", "risk_acwr", "ICS", "risk_ics", "riesgo", "riesgo_pct"]].copy()
     show_tbl = show_tbl.rename(columns={
         "nombre_jugadora": "Jugadora",
@@ -1396,7 +1457,6 @@ def risk_view(df: pd.DataFrame) -> None:
         "riesgo_pct": "Riesgo %",
     })
     st.dataframe(show_tbl, use_container_width=True)
-
 
 def _build_individual_report_html(
     player: str,
@@ -1534,4 +1594,3 @@ def _build_individual_report_html(
 </html>
     """
     return html.encode("utf-8")
-
