@@ -13,7 +13,6 @@ from .metrics import compute_rpe_metrics, RPEFilters
 BRAND_PRIMARY = "#800000"  # grana/maroon
 BRAND_TEXT = "#000000"     # black
 
-
 def _exportable_chart(chart: alt.Chart, key: str, height: int = 300):
     """Render Altair chart with a small export UI (PNG) via vega-embed actions.
 
@@ -97,26 +96,17 @@ def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str
     st.divider()
     st.caption("Campos opcionales")
 
+    record["en_periodo"] = st.checkbox("En periodo")
+    
     colA, colB = st.columns([2, 1])
     with colA:
         record["periodizacion_tactica"] = st.slider(
-            "Matchday (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
+            "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
         )
-        record["observacion"] = st.text_area("Observación", value="")
-    with colB:
-        record["en_periodo"] = st.checkbox("En periodo")
-        
-        colA, colB = st.columns([2, 1])
-        with colA:
-            record["periodizacion_tactica"] = st.slider(
-                "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
-            )
 
-        record["observacion"] = st.text_area("Observación", value="")
-        # with colB:
-        #     record["en_periodo"] = st.checkbox("En periodo")
+    record["observacion"] = st.text_area("Observación", value="")
 
-        is_valid, msg = validate_checkin(record)
+    is_valid, msg = validate_checkin(record)
     return record, is_valid, msg
 
 def checkout_form(record: dict) -> tuple[dict, bool, str]:
