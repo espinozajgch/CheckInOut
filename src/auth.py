@@ -155,6 +155,9 @@ def menu():
         st.page_link("pages/riesgo.py", label="Riesgo", icon=":material/falling:")
         st.page_link("pages/reporte.py", label="Reporte individual", icon=":material/finance:")
         
+        if st.session_state["auth"]["rol"] == "developer":
+            st.page_link("pages/admin.py", label="Admin", icon=":material/app_registration:")
+        
         btnSalir = st.button("Cerrar Sesión", type="tertiary", icon=":material/logout:")
 
         if btnSalir:

@@ -222,7 +222,7 @@ def responses_view(df: pd.DataFrame) -> None:
     sort_cols = [c for c in ["fecha", "turno"] if c in filtered.columns]
     ascending = [False, True][: len(sort_cols)]
     to_show = filtered.sort_values(by=sort_cols, ascending=ascending, na_position="last") if sort_cols else filtered
-    st.dataframe(to_show, use_container_width=True)
+    st.dataframe(to_show)
 
     # Downloads
     st.divider()
@@ -358,7 +358,7 @@ def rpe_view(df: pd.DataFrame) -> None:
     st.caption("Cargas diarias (UA total por día)")
     daily = metrics.get("daily_table")
     if isinstance(daily, pd.DataFrame) and not daily.empty:
-        st.dataframe(daily.sort_values("fecha_dia"), use_container_width=True)
+        st.dataframe(daily.sort_values("fecha_dia"))
         st.divider()
         try:
             chart_df = daily.copy()
@@ -499,7 +499,7 @@ def rpe_view(df: pd.DataFrame) -> None:
             )
             if chart_type == "RPE":
                 chart_rpe = alt.layer(bars_rpe, line_rpe).resolve_scale(y='independent').properties(height=220, width="container")
-                st.altair_chart(chart_rpe, use_container_width=True)
+                st.altair_chart(chart_rpe)
 
             # UA: barras (jugadora) + línea (promedio equipo)
             base_ua = alt.Chart(plot_df).encode(
@@ -520,7 +520,7 @@ def rpe_view(df: pd.DataFrame) -> None:
             )
             if chart_type == "UA":
                 chart_ua = alt.layer(bars_ua, line_ua).resolve_scale(y='independent').properties(height=220, width="container")
-                st.altair_chart(chart_ua, use_container_width=True)
+                st.altair_chart(chart_ua)
 
             # ACWR (agudo:crónico) por día con zonas 'sweet spot' y 'danger zone'
             try:
@@ -579,7 +579,7 @@ def rpe_view(df: pd.DataFrame) -> None:
                     bg_red = bg_red.encode(y="y0:Q", y2="y1:Q").properties()
 
                     chart_acwr = alt.layer(bg_green, bg_red, rules, line, pts).resolve_scale(y="shared").properties(height=220, width="container")
-                    st.altair_chart(chart_acwr, use_container_width=True)
+                    st.altair_chart(chart_acwr)
             except Exception:
                 pass
     except Exception:
@@ -770,9 +770,9 @@ def checkin_view(df: pd.DataFrame) -> None:
 
     if "ICS" in view.columns:
         styler = view.style.applymap(_ics_style, subset=["ICS"])  # type: ignore
-        st.dataframe(styler, use_container_width=True)
+        st.dataframe(styler)
     else:
-        st.dataframe(view, use_container_width=True)
+        st.dataframe(view)
 
     # --- Gráfica por jugadora (día seleccionado) con línea de promedio del equipo ---
     st.divider()
@@ -830,9 +830,9 @@ def checkin_view(df: pd.DataFrame) -> None:
         bars = chart.mark_bar(color=BRAND_PRIMARY)
         if team_avg is not None:
             rule = alt.Chart(pd.DataFrame({"y": [team_avg]})).mark_rule(color=BRAND_TEXT).encode(y="y:Q")
-            st.altair_chart(bars + rule, use_container_width=True)
+            st.altair_chart(bars + rule)
         else:
-            st.altair_chart(bars, use_container_width=True)
+            st.altair_chart(bars)
     except Exception:
         st.info("No se pudo renderizar la gráfica por jugadora.")
 
@@ -872,7 +872,7 @@ def checkin_view(df: pd.DataFrame) -> None:
         responded = set(view["Jugadora"].astype(str).unique().tolist()) if "Jugadora" in view.columns else set()
         missing = [j for j in roster if j not in responded]
         if missing:
-            st.dataframe(pd.DataFrame({"Jugadora": missing}).sort_values("Jugadora"), use_container_width=True)
+            st.dataframe(pd.DataFrame({"Jugadora": missing}).sort_values("Jugadora"))
         else:
             st.success("Todas las jugadoras seleccionadas respondieron en la fecha.")
 
@@ -1047,7 +1047,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
             bars = base.mark_bar(color=BRAND_PRIMARY).encode(y=alt.Y("ua:Q", title="UA"), tooltip=["fecha_pt:N", alt.Tooltip("ua:Q", format=".0f", title="UA"), alt.Tooltip("ua_media7:Q", format=".0f", title="Media 7d")])
             line = base.mark_line(color=BRAND_TEXT).encode(y=alt.Y("ua_media7:Q", title="Media 7d"))
             ua_chart = alt.layer(bars, line).properties(height=220, title="UA por sesión (con media 7d)")
-            st.altair_chart(ua_chart, use_container_width=True)
+            st.altair_chart(ua_chart)
             with st.expander("Exportar PNG (UA)", expanded=False):
                 _exportable_chart(ua_chart, key=f"ind_ua_{player}", height=220)
         else:
@@ -1058,7 +1058,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
             line1 = base.mark_line(color=BRAND_PRIMARY).encode(y=alt.Y("rpe:Q", title="RPE"), tooltip=["fecha_pt:N", alt.Tooltip("rpe:Q", format=".2f", title="RPE"), alt.Tooltip("rpe_media7:Q", format=".2f", title="Media 7d")])
             line2 = base.mark_line(color=BRAND_TEXT).encode(y=alt.Y("rpe_media7:Q", title="Media 7d"))
             rpe_chart = alt.layer(line1, line2).properties(height=220, title="RPE por sesión (con media 7d)")
-            st.altair_chart(rpe_chart, use_container_width=True)
+            st.altair_chart(rpe_chart)
             with st.expander("Exportar PNG (RPE)", expanded=False):
                 _exportable_chart(rpe_chart, key=f"ind_rpe_{player}", height=220)
         else:
@@ -1072,7 +1072,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
             color=alt.Color("metric:N", title="Métrica", legend=alt.Legend(orient="bottom")),
             tooltip=["fecha_pt:N", "metric:N", alt.Tooltip("valor:Q", format=".2f")],
         ).properties(height=260, title="Wellness (recuperación, fatiga, sueño, estrés, dolor)")
-        st.altair_chart(ci_chart, use_container_width=True)
+        st.altair_chart(ci_chart)
         with st.expander("Exportar PNG (Wellness)", expanded=False):
             _exportable_chart(ci_chart, key=f"ind_ci_{player}", height=260)
     else:
@@ -1187,7 +1187,7 @@ def individual_report_view(df: pd.DataFrame) -> None:
         view["partes_cuerpo_dolor"] = view["partes_cuerpo_dolor"].apply(lambda x: "; ".join(map(str, x)) if isinstance(x, (list, tuple)) else ("" if x is None else str(x)))
 
     # Mostrar tabla
-    st.dataframe(view, use_container_width=True)
+    st.dataframe(view)
 
     # Descargas
     st.divider()
@@ -1432,7 +1432,7 @@ def risk_view(df: pd.DataFrame) -> None:
             alt.Tooltip("ICS:N", title="ICS"),
         ],
     ).mark_bar()
-    st.altair_chart(chart.properties(height=max(200, 24 * len(plot))), use_container_width=True)
+    st.altair_chart(chart.properties(height=max(200, 24 * len(plot))))
 
     # Tabla detallada
     st.divider()
@@ -1446,7 +1446,7 @@ def risk_view(df: pd.DataFrame) -> None:
         "riesgo": "Riesgo combinado (0-1)",
         "riesgo_pct": "Riesgo %",
     })
-    st.dataframe(show_tbl, use_container_width=True)
+    st.dataframe(show_tbl)
 
 def _build_individual_report_html(
     player: str,
