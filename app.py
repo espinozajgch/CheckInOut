@@ -1,4 +1,7 @@
 import streamlit as st
+import os
+import shutil
+from datetime import datetime
 from src.auth import ensure_session_defaults, login_view, logout_button
 
 from src.io_files import (
@@ -26,7 +29,10 @@ from src.ui_components import (
     responses_view,
     rpe_view,
     checkin_view,
+    individual_report_view,
+    risk_view,
 )
+from src.synthetic import generate_synthetic_full
 
 # Streamlit page config
 st.set_page_config(page_title="Wellness & RPE", page_icon="assets/images/logo.png", layout="wide")
@@ -45,19 +51,51 @@ if not st.session_state["auth"]["is_logged_in"]:
 
 # Top bar with logout
 with st.sidebar:
-    st.logo("assets/images/logo.png", size="large")
-    st.subheader("Entrenador :material/sports:")
-    
-    #st.write(f"Usuario: {st.session_state['auth']['username']}")
-    st.write(f"Hola **:blue-background[{st.session_state['auth']['username']}]** ")
-    #st.subheader("Modo :material/dashboard:")
-    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
+    st.markdown("### Entrenador")
+    st.write(f"Usuario: {st.session_state['auth']['username']}")
+    logout_button()
+    st.markdown("---")
+    mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE", "Riesgo", "Reporte individual"], index=0)
+    with st.expander("Generar datos aleatorios (30 días)"):
+        st.caption("Genera datos de Check-in y Check-out para todas las jugadoras durante 30 días. La periodización táctica avanzará de forma cronológica. Se creará un backup de data/registros.jsonl antes de escribir.")
+        if st.button("Generar datos completos (30 días)"):
+            try:
+                summary = generate_synthetic_full(days=30, seed=777)
+                backup = summary.get("backup")
+                target = summary.get("target")
+                ci = summary.get("created_checkin")
+                co = summary.get("created_checkout")
+                total = summary.get("total_upserts")
+                st.session_state["flash"] = (
+                    f"Datos generados: Check-in {ci}, Check-out {co}, Total upserts {total}. "
+                    + (f"Backup: {backup}. " if backup else "")
+                    + f"Archivo: {target}"
+                )
+            except Exception as e:
+                st.session_state["flash"] = f"Error generando datos completos: {e}"
+            st.rerun()
 
-    #st.page_link("pages/registros.py", label="Registro", icon=":material/sports:")
-    #st.page_link("pages/logout.py", label="Salir", icon=":material/logout:")
-    st.divider()
-    #logout_button()
-
+    with st.expander("Administrar datos"):
+        st.caption("Respaldar y vaciar el archivo de registros si necesitas empezar desde cero.")
+        if st.button("Vaciar registros (backup y reset)"):
+            try:
+                # Backup si existe
+                from src.io_files import DATA_DIR, REGISTROS_JSONL
+                os.makedirs(DATA_DIR, exist_ok=True)
+                backup_path = None
+                if os.path.exists(REGISTROS_JSONL):
+                    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
+                    backup_path = os.path.join(DATA_DIR, f"registros.backup_{ts}.jsonl")
+                    shutil.copy(REGISTROS_JSONL, backup_path)
+                # Vaciar archivo
+                with open(REGISTROS_JSONL, "w", encoding="utf-8") as f:
+                    pass
+                st.session_state["flash"] = (
+                    (f"Backup: {backup_path}. " if backup_path else "") + "Registros vaciados correctamente."
+                )
+            except Exception as e:
+                st.session_state["flash"] = f"Error al vaciar registros: {e}"
+            st.rerun()
 
 #st.title("Wellness & RPE")
 st.header('Wellness & :red[RPE]')
@@ -104,6 +142,16 @@ if mode == "RPE":
 if mode == "Check-in":
     df = get_records_df()
     checkin_view(df)
+    st.stop()
+
+if mode == "Riesgo":
+    df = get_records_df()
+    risk_view(df)
+    st.stop()
+
+if mode == "Reporte individual":
+    df = get_records_df()
+    individual_report_view(df)
     st.stop()
 
 jugadora, tipo, turno = selection_header(jug_df)

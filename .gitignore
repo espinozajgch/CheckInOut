@@ -205,4 +205,10 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
 .DS_Store
+desktop.ini 
+
+# Archivos de respaldo de registros
+data/registros.backup_*.jsonl
+.streamlit/secrets.toml
