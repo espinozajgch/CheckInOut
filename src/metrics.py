@@ -36,7 +36,7 @@ def _prepare_checkout_df(df: pd.DataFrame) -> pd.DataFrame:
 def _apply_filters(df: pd.DataFrame, flt: RPEFilters) -> pd.DataFrame:
     d = df.copy()
     if flt.jugadores:
-        d = d[d["nombre_jugadora"].astype(str).isin(flt.jugadores)]
+        d = d[d["nombre"].astype(str).isin(flt.jugadores)]
     if flt.turnos:
         d = d[d["turno"].astype(str).isin(flt.turnos)]
     if flt.start and flt.end and "fecha_dia" in d.columns:

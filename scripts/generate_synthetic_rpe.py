@@ -25,7 +25,7 @@ def load_players():
     if not os.path.exists(JUGADORAS_XLSX):
         raise FileNotFoundError(f"No se encontró el archivo de jugadoras: {JUGADORAS_XLSX}")
     df = pd.read_excel(JUGADORAS_XLSX)
-    if not {"id_jugadora", "nombre_jugadora"}.issubset(df.columns.astype(str)):
+    if not {"identificacion", "nombre"}.issubset(df.columns.astype(str)):
         raise ValueError("El archivo jugadoras.xlsx debe tener las columnas: id_jugadora, nombre_jugadora")
     return df
 
@@ -86,8 +86,8 @@ def generate_rpe_for_range(days: int = 30, seed: int = 42) -> None:
             continue
 
         for _, row in players.iterrows():
-            jug_id = str(row["id_jugadora"])
-            jug_name = str(row["nombre_jugadora"])
+            jug_id = str(row["identificacion"])
+            jug_name = str(row["nombre"])
 
             # Randomly choose a turno per player per day
             turno = random.choice(turnos)

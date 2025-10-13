@@ -76,8 +76,8 @@ def generate_synthetic_full(days: int = 30, seed: int = 777) -> dict:
     for idx, d in enumerate(days_list):
         pt_val = day_pts[idx]
         for _, row in players.iterrows():
-            jug_id = str(row["id_jugadora"])
-            jug_name = str(row["nombre_jugadora"])
+            jug_id = str(row["identificacion"])
+            jug_name = str(row["nombre"])
             turno = random.choice(turnos)
 
             # --- Check-in ---

@@ -10,6 +10,7 @@ DATA_DIR = os.path.join(BASE_DIR, "data")
 JUGADORAS_JSON = os.path.join(DATA_DIR, "jugadoras.jsonl")
 PARTES_CUERPO_JSON = os.path.join(DATA_DIR, "partes_cuerpo.jsonl")
 REGISTROS_JSONL = os.path.join(DATA_DIR, "registros.jsonl")
+COMPETICIONES_JSONL = os.path.join(DATA_DIR, "competiciones.jsonl")
 
 def _ensure_data_dir() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
@@ -24,6 +25,30 @@ from pathlib import Path
 
 def _ensure_data_dir():
     os.makedirs("data", exist_ok=True)
+
+def load_competiciones() -> tuple[pd.DataFrame | None, str | None]:
+    """
+    Carga jugadoras desde archivo JSON. Se esperan las claves: id_jugadora, nombre_jugadora
+
+    Returns:
+        tuple: (DataFrame o None, mensaje de error o None)
+    """
+    _ensure_data_dir()
+    if not os.path.exists(COMPETICIONES_JSONL):
+        return None, f"No se encontró {COMPETICIONES_JSONL}. Descarga y coloca el archivo."
+
+    try:
+        with open(COMPETICIONES_JSONL, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        df = pd.DataFrame(data)
+        #df = df[df["activo"] == 1]
+        df = df.sort_values("nombre")
+
+        return df, None
+
+    except Exception as e:
+        return None, f"Error leyendo jugadoras.json: {e}"
 
 def load_jugadoras() -> tuple[pd.DataFrame | None, str | None]:
     """
@@ -41,11 +66,11 @@ def load_jugadoras() -> tuple[pd.DataFrame | None, str | None]:
             data = json.load(f)
 
         df = pd.DataFrame(data)
-        expected = {"id_jugadora", "nombre_jugadora"}
-        if not expected.issubset(df.columns.astype(str)):
-            return None, f"Las columnas deben ser: {sorted(list(expected))}."
+        df = df[df["activo"] == 1]
+        df = df.sort_values("nombre")
 
         return df, None
+
     except Exception as e:
         return None, f"Error leyendo jugadoras.json: {e}"
 
@@ -76,8 +101,8 @@ def get_template_bytes(template_type: str) -> bytes:
     """
     if template_type == "jugadoras":
         df = pd.DataFrame([
-            {"id_jugadora": "1", "nombre_jugadora": "Jugador/a 1"},
-            {"id_jugadora": "2", "nombre_jugadora": "Jugador/a 2"},
+            {"identificacion": "1", "nombre": "Jugador/a 1"},
+            {"identificacion": "2", "nombre": "Jugador/a 2"},
         ])
     elif template_type == "partes_cuerpo":
         df = pd.DataFrame([
@@ -150,7 +175,7 @@ def upsert_jsonl(record: dict) -> None:
       (minutos_sesion, rpe, ua); de lo contrario 'checkIn'.
     """
     records = _read_all_records()
-    key_id = record.get("id_jugadora")
+    key_id = record.get("identificacion")
     key_day = _date_only(record.get("fecha_hora", ""))
     key_turno = (record.get("turno") or "").strip()
 
@@ -158,7 +183,7 @@ def upsert_jsonl(record: dict) -> None:
     for idx, rec in enumerate(records):
         rec_turno = (rec.get("turno") or "").strip()
         if (
-            rec.get("id_jugadora") == key_id
+            rec.get("identificacion") == key_id
             and _date_only(rec.get("fecha_hora", "")) == key_day
             and rec_turno == key_turno
         ):
@@ -208,7 +233,7 @@ def get_record_for_player_day(id_jugadora: str, fecha_hora: str):
     records = _read_all_records()
     target_day = _date_only(fecha_hora or "")
     for rec in records:
-        if rec.get("id_jugadora") == id_jugadora and _date_only(rec.get("fecha_hora", "")) == target_day:
+        if rec.get("identificacion") == id_jugadora and _date_only(rec.get("fecha_hora", "")) == target_day:
             return rec
     return None
 
@@ -219,7 +244,7 @@ def get_record_for_player_day_turno(id_jugadora: str, fecha_hora: str, turno: st
     turno = (turno or "").strip()
     for rec in records:
         if (
-            rec.get("id_jugadora") == id_jugadora
+            rec.get("identificacion") == id_jugadora
             and _date_only(rec.get("fecha_hora", "")) == target_day
             and (rec.get("turno") or "").strip() == turno
         ):

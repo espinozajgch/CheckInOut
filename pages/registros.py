@@ -22,14 +22,8 @@ from src.schema import (
 )
 
 from src.io_files import (
-    load_jugadoras,
-    load_partes_json,
-    append_jsonl,
-    upsert_jsonl,
-    get_record_for_player_day,
-    get_record_for_player_day_turno,
-    get_records_df,
-    DATA_DIR,
+    load_jugadoras, load_partes_json, upsert_jsonl, load_competiciones,
+    get_record_for_player_day_turno, DATA_DIR,
 )
 
 # Authentication gate
@@ -43,6 +37,7 @@ menu()
 
 # Load reference data
 jug_df, jug_error = load_jugadoras()
+comp_df, comp_error = load_competiciones()
 
 if jug_error:
     st.error(jug_error)
@@ -54,22 +49,24 @@ if partes_error:
     st.error(partes_error)
     st.stop()
 
-jugadora, tipo, turno = selection_header(jug_df)
+jugadora, tipo, turno = selection_header(jug_df, comp_df)
+
+st.divider()
 
 if not jugadora:
     st.info("Selecciona una jugadora para continuar.")
     st.stop()
 
 record = new_base_record(
-    id_jugadora=str(jugadora["id_jugadora"]),
-    nombre_jugadora=str(jugadora["nombre_jugadora"]),
+    id_jugadora=str(jugadora["identificacion"]),
+    nombre_jugadora=str(jugadora["nombre"] + " " + jugadora["apellido"]),
     tipo="checkIn" if tipo == "Check-in" else "checkOut",
 )
 record["turno"] = turno or ""
 
 # Notice if will update existing record of today and turno
 existing_today = (
-    get_record_for_player_day_turno(record["id_jugadora"], record["fecha_hora"], record.get("turno", ""))
+    get_record_for_player_day_turno(record["identificacion"], record["fecha_hora"], record.get("turno", ""))
     if jugadora
     else None
 )
