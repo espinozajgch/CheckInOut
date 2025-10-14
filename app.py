@@ -1,6 +1,6 @@
 import streamlit as st
 from src.io_files import get_records_df
-from src.ui_components import checkin_view
+from src.ui_components import checkin_view, home_view, individual_report_view
 
 import src.config as config
 config.init_config()
@@ -21,4 +21,4 @@ st.header("Respuestas :red[Check-in]", divider="red")
 menu()
 
 df = get_records_df()
-checkin_view(df)
+home_view(df)
