@@ -39,7 +39,7 @@ def _exportable_chart(chart: alt.Chart, key: str, height: int = 300):
 
 def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame):
 
-    col1, col2, col3, col4 = st.columns([3, 2, 1, 2])
+    col1, col2, col3, col4 = st.columns([3, 2, 1.5, 2])
 
     with col1:
         competiciones_options = comp_df.to_dict("records")
