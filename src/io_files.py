@@ -11,20 +11,61 @@ JUGADORAS_JSON = os.path.join(DATA_DIR, "jugadoras.jsonl")
 PARTES_CUERPO_JSON = os.path.join(DATA_DIR, "partes_cuerpo.jsonl")
 REGISTROS_JSONL = os.path.join(DATA_DIR, "registros.jsonl")
 COMPETICIONES_JSONL = os.path.join(DATA_DIR, "competiciones.jsonl")
+USERS_FILE = os.path.join(DATA_DIR, "users.jsonl")
 
 def _ensure_data_dir() -> None:
     os.makedirs(DATA_DIR, exist_ok=True)
 
-import os
-import json
-import pandas as pd
+def load_users():
+    """Carga usuarios desde USERS_FILE en formato JSON estándar (lista) o JSONL (una línea por objeto).
+    Devuelve siempre una lista de diccionarios.
+    """
+    try:
+        with open(USERS_FILE, "r", encoding="utf-8") as f:
+            text = f.read().strip()
 
-from pathlib import Path
+        if not text:
+            return []
 
-#JUGADORAS_JSON = Path("data/jugadoras.json")  # reemplaza el path al archivo JSON si es necesario
+        first_char = text.lstrip()[:1]
 
-def _ensure_data_dir():
-    os.makedirs("data", exist_ok=True)
+        # --- Caso 1: JSON estándar (lista de objetos) ---
+        if first_char == "[":
+            data = json.loads(text)
+            if not isinstance(data, list):
+                st.error("El archivo de usuarios no contiene una lista JSON válida.")
+                return []
+            return [u for u in data if isinstance(u, dict)]
+
+        # --- Caso 2: JSONL (una línea por usuario) ---
+        elif first_char == "{":
+            users = []
+            for i, line in enumerate(text.splitlines(), start=1):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                    if isinstance(obj, dict):
+                        users.append(obj)
+                except json.JSONDecodeError as e:
+                    st.error(f"Error de JSON en la línea {i} de '{USERS_FILE}': {e}")
+                    return []
+            return users
+
+        else:
+            st.error("Formato de archivo de usuarios no reconocido (ni lista JSON ni JSONL).")
+            return []
+
+    except FileNotFoundError:
+        st.error("Archivo de usuarios no encontrado.")
+        return []
+    except json.JSONDecodeError as e:
+        st.error(f"Error al leer el archivo de usuarios: {e}")
+        return []
+    except Exception as e:
+        st.error(f"Error inesperado al cargar usuarios: {e}")
+        return []
 
 def load_competiciones() -> tuple[pd.DataFrame | None, str | None]:
     """

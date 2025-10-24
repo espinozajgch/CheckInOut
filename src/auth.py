@@ -3,6 +3,7 @@ import streamlit as st
 import jwt
 import time
 from st_cookies_manager import EncryptedCookieManager
+from src.io_files import load_users
 
 # # --- CONFIG JWT ---
 JWT_SECRET = st.secrets.auth.jwt_secret
@@ -31,21 +32,22 @@ def ensure_session_defaults() -> None:
             "token": ""
         }
 
-def _get_credentials() -> tuple[str, str]:
-    """Load credentials from environment or fallback to hardcoded defaults.
+# def _get_credentials() -> tuple[str, str]:
+#     """Load credentials from environment or fallback to hardcoded defaults.
 
-    Environment variables (optional): TRAINER_USER, TRAINER_PASS
-    Defaults: admin / admin
-    """
-    user = st.secrets.db.username
-    pwd = st.secrets.db.password
-    rol = st.secrets.db.rol
-    return user, pwd, rol
+#     Environment variables (optional): TRAINER_USER, TRAINER_PASS
+#     Defaults: admin / admin
+#     """
+#     user = st.secrets.db.username
+#     pwd = st.secrets.db.password
+#     rol = st.secrets.db.rol
+#     return user, pwd, rol
 
 def login_view() -> None:
     """Render the login form and handle authentication."""
     
-    expected_user, expected_pass, rol = _get_credentials()
+    users = load_users()
+    #expected_user, expected_pass, rol = _get_credentials()
     
     _, col2, _ = st.columns([2, 1.5, 2])
 
@@ -67,16 +69,22 @@ def login_view() -> None:
             </style>
         """, unsafe_allow_html=True)
 
-        st.header('Login :red[Entrenador]')
-
+        
+        st.image("assets/images/banner.png")
+        #st.header('RPE and :red[Wellness]')
         with st.form("login_form", clear_on_submit=False):
             username = st.text_input("Usuario", value="")
             password = st.text_input("Contraseña", type="password", value="")
             submitted = st.form_submit_button("Iniciar sesión", type="primary")
 
         if submitted:
-            if username == expected_user and password == expected_pass:
-
+            user_data = next(
+                (u for u in users if u["username"] == username and u["password"] == password),
+                None
+            )
+            #if username == expected_user and password == expected_pass:
+            if user_data:
+                rol = user_data["rol"]
                 token = create_jwt_token(username, rol)
                 cookies["auth_token"] = token
                 cookies.save()
@@ -91,7 +99,7 @@ def login_view() -> None:
             else:
                 st.error("Usuario o contraseña incorrectos")
 
-        st.caption("Usa usuario/contraseña proporcionados o variables de entorno TRAINER_USER/TRAINER_PASS")
+        #st.caption("Usa usuario/contraseña proporcionados o variables de entorno TRAINER_USER/TRAINER_PASS")
 
 
 def create_jwt_token(username: str, rol: str) -> str:
@@ -138,24 +146,26 @@ def validate_login():
 def menu():
     with st.sidebar:
         st.logo("assets/images/banner.png", size="large")
-        st.subheader("Entrenador :material/admin_panel_settings:")
+        st.subheader(f'Rol: {st.session_state["auth"]["rol"].capitalize()} :material/admin_panel_settings:')
         
         #st.write(f"Usuario: {st.session_state['auth']['username']}")
         st.write(f"Hola **:blue-background[{st.session_state['auth']['username'].capitalize()}]** ")
 
         st.page_link("app.py", label="Inicio", icon=":material/home:")
-        st.subheader("Modo :material/dashboard:")
-        #
-        #mode = st.radio("Modo", options=["Registro", "Respuestas", "Check-in", "RPE"], index=0)
         
+        st.subheader("Modo :material/dashboard:")
+
         st.page_link("pages/registros.py", label="Registro", icon=":material/article_person:")
         
+        st.subheader("Análisis y Estadísticas  :material/query_stats:")
         #st.page_link("pages/checkin.py", label="Check-in", icon=":material/fact_check:")
         st.page_link("pages/rpe.py", label="RPE", icon=":material/accessible_menu:")
         st.page_link("pages/riesgo.py", label="Riesgo", icon=":material/falling:")
-        st.page_link("pages/reporte.py", label="Reporte individual", icon=":material/finance:")
+
+        st.page_link("pages/reporte.py", label="Individual", icon=":material/finance:")
         
-        if st.session_state["auth"]["rol"] == "developer":
+        if st.session_state["auth"]["rol"] == "admin":
+            st.subheader("Administración :material/settings:")
             st.page_link("pages/admin.py", label="Admin", icon=":material/app_registration:")
         
         btnSalir = st.button("Cerrar Sesión", type="tertiary", icon=":material/logout:")
