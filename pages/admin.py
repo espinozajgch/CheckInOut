@@ -31,15 +31,6 @@ with col1:
 with col2:
     seed = st.number_input("Semilla aleatoria (seed)", min_value=0, value=42, step=1)
 
-#st.markdown("Selecciona el tipo de registros a generar:")
-# modo = st.radio(
-#     "Tipo de simulación",
-#     ["Check-In (Wellness)", "Check-Out (RPE)", "Completo (ambos)"],
-#     horizontal=True,
-#     index=2,
-#     label_visibility="collapsed",
-# )
-
 # --- Botón principal ---
 if st.button("Generar registros aleatorios", type="primary"):
     try:

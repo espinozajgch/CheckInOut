@@ -3,7 +3,8 @@ import streamlit as st
 import jwt
 import time
 from st_cookies_manager import EncryptedCookieManager
-from src.io_files import load_users
+from src.db_login import load_user_from_db
+import bcrypt
 
 # # --- CONFIG JWT ---
 JWT_SECRET = st.secrets.auth.jwt_secret
@@ -46,7 +47,7 @@ def ensure_session_defaults() -> None:
 def login_view() -> None:
     """Render the login form and handle authentication."""
     
-    users = load_users()
+    #users = load_users()
     #expected_user, expected_pass, rol = _get_credentials()
     
     _, col2, _ = st.columns([2, 1.5, 2])
@@ -78,24 +79,30 @@ def login_view() -> None:
             submitted = st.form_submit_button("Iniciar sesión", type="primary")
 
         if submitted:
-            user_data = next(
-                (u for u in users if u["username"] == username and u["password"] == password),
-                None
-            )
+            user_data = load_user_from_db(username)
+            if not user_data:
+                st.error("Usuario no encontrado o inactivo.")
+                st.stop()
+            
+            #user_data = next((u for u in users if u["username"] == username and u["password"] == password), None)
             #if username == expected_user and password == expected_pass:
             if user_data:
-                rol = user_data["rol"]
-                token = create_jwt_token(username, rol)
-                cookies["auth_token"] = token
-                cookies.save()
+                validate_password(password, user_data)
+            
+            #if username == expected_user and password == expected_pass:
+            # if user_data:
+            #     rol = user_data["rol"]
+            #     token = create_jwt_token(username, rol)
+            #     cookies["auth_token"] = token
+            #     cookies.save()
                 
-                st.session_state["auth"]["is_logged_in"] = True
-                st.session_state["auth"]["username"] = username
-                st.session_state["auth"]["rol"] = rol
-                st.session_state["auth"]["token"] = token
+            #     st.session_state["auth"]["is_logged_in"] = True
+            #     st.session_state["auth"]["username"] = username
+            #     st.session_state["auth"]["rol"] = rol
+            #     st.session_state["auth"]["token"] = token
 
-                st.success("Autenticado correctamente")
-                st.rerun()
+            #     st.success("Autenticado correctamente")
+            #     st.rerun()
             else:
                 st.error("Usuario o contraseña incorrectos")
 
@@ -112,6 +119,24 @@ def create_jwt_token(username: str, rol: str) -> str:
     }
     token = jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
     return token
+
+def validate_password(password, user):
+    # Verificar contraseña
+    if bcrypt.checkpw(password.encode("utf-8"), user["password_hash"].encode("utf-8")):
+        token = create_jwt_token(user["email"], user["role_name"])
+        st.session_state["auth"] = {
+            "is_logged_in": True,
+            "username": user["email"],
+            "rol": user["role_name"].lower(),
+            "nombre": f"{user['name']} {user['lastname']}".strip(),
+            "token": token
+        }
+        cookies["auth_token"] = token
+        cookies.save()
+        st.success(":material/check: Autenticado correctamente.")
+        st.rerun()
+    else:
+        st.error("Usuario o contraseña incorrectos")
 
 def get_current_user():
     """Valida token de cookie o session_state y devuelve usuario si es válido."""
@@ -164,7 +189,7 @@ def menu():
 
         st.page_link("pages/reporte.py", label="Individual", icon=":material/finance:")
         
-        if st.session_state["auth"]["rol"] == "admin":
+        if st.session_state["auth"]["rol"].lower() == "admin":
             st.subheader("Administración :material/settings:")
             st.page_link("pages/admin.py", label="Admin", icon=":material/app_registration:")
         

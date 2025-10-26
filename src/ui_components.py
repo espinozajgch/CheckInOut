@@ -146,6 +146,7 @@ def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str
 
         # --- Variables principales ---
         c1, c2, c3, c4, c5 = st.columns(5)
+        #c1, c2 = st.columns([0.8,4])
         with c1:
             record["recuperacion"] = st.number_input("**Recuperación** :green[:material/arrow_upward_alt:] (:red[**1**] - :green[**5**])", min_value=1, max_value=5, step=1,
             help="1 = Muy mal recuperado · 5 = Totalmente recuperado")
@@ -162,31 +163,33 @@ def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str
             record["dolor"] = st.number_input("**Dolor** :green[:material/arrow_downward_alt:] (:green[**1**] - :red[**5**])", min_value=1, max_value=5, step=1,
             help="1 = Sin dolor . 5 = Dolor severo")
 
-        # --- Dolor corporal ---
-        if int(record.get("dolor", 0)) > 1:
-            opciones = partes_df["parte"].astype(str).tolist() if partes_df is not None else []
-            record["partes_cuerpo_dolor"] = st.multiselect(
-                "Partes del cuerpo con dolor", options=opciones
-            )
-        else:
-            record["partes_cuerpo_dolor"] = []
+        with c1:
+            # --- Dolor corporal ---
+            if int(record.get("dolor", 0)) > 1:
+                opciones = partes_df["parte"].astype(str).tolist() if partes_df is not None else []
+                record["partes_cuerpo_dolor"] = st.multiselect(
+                    "Partes del cuerpo con dolor", options=opciones
+                )
+            else:
+                record["partes_cuerpo_dolor"] = []
 
     # --- Campos opcionales ---
-    st.divider()
-    st.caption("Campos opcionales")
+    #st.divider()
+        #with c2:
+        st.caption("Campos opcionales")
 
-    record["en_periodo"] = st.checkbox("En periodo")
+        record["en_periodo"] = st.checkbox("En periodo")
 
-    # --- Nuevo bloque de periodización táctica adaptativo ---
-    record = tactical_periodization_block(record, microciclo_dias=6, partidos_semana=1)
+        # --- Nuevo bloque de periodización táctica adaptativo ---
+        record = tactical_periodization_block(record, microciclo_dias=6, partidos_semana=1)
 
-    # --- Observación libre ---
-    record["observacion"] = st.text_area("Observación", value="")
+        # --- Observación libre ---
+        record["observacion"] = st.text_area("Observación", value="")
 
-    # --- Validación básica ---
-    if record["dolor"] > 1 and not record["partes_cuerpo_dolor"]:
-        return record, False, "Selecciona al menos una parte del cuerpo con dolor."
-    return record, True, ""
+        # --- Validación básica ---
+        if record["dolor"] > 1 and not record["partes_cuerpo_dolor"]:
+            return record, False, "Selecciona al menos una parte del cuerpo con dolor."
+        return record, True, ""
 
 
 # def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str]:
