@@ -120,9 +120,41 @@ def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str
     
     colA, colB = st.columns([2, 1])
     with colA:
-        record["periodizacion_tactica"] = st.slider(
-            "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
+        # Escala combinada: valores positivos se "envuelven" para que +1 => -6, ..., +6 => -1, 0 => 0
+        raw_pt = int(record.get("periodizacion_tactica", 0) or 0)
+        def _normalize_pt(v: int) -> int:
+            try:
+                v = int(v)
+            except Exception:
+                v = 0
+            if v > 0:
+                return max(-6, min(0, v - 7))
+            return max(-6, min(0, v))
+        current_pt = _normalize_pt(raw_pt)
+        slider_val = st.slider(
+            "Periodización táctica (-6 a 0)", min_value=-6, max_value=0, value=current_pt, step=1, key="pt_slider"
         )
+    with colB:
+        # Menú Matchday sincronizado con el slider en escala combinada con pares: +1/-6 ... +6/-1 y 0 al final
+        md_pairs = [
+            ("MD+1 / MD-6", -6),
+            ("MD+2 / MD-5", -5),
+            ("MD+3 / MD-4", -4),
+            ("MD+4 / MD-3", -3),
+            ("MD+5 / MD-2", -2),
+            ("MD+6 / MD-1", -1),
+            ("MD0", 0),
+        ]
+        # map -6..0 -> 0..6 for index
+        idx_from_slider = slider_val + 6
+        md_sel_label = st.selectbox("Matchday", options=[p[0] for p in md_pairs], index=idx_from_slider, key="pt_md_select")
+        # Si el usuario cambia el select, sincronizamos el slider y el valor guardado
+        selected_idx = [p[0] for p in md_pairs].index(md_sel_label)
+        final_pt = md_pairs[selected_idx][1]
+        if final_pt != slider_val:
+            st.session_state["pt_slider"] = final_pt
+        # Guardar en el registro como -6..0
+        record["periodizacion_tactica"] = final_pt
 
     record["observacion"] = st.text_area("Observación", value="")
 
@@ -1467,6 +1499,74 @@ def risk_view(df: pd.DataFrame) -> None:
         "riesgo_pct": "Riesgo %",
     })
     st.dataframe(show_tbl)
+
+    st.divider()
+    st.subheader("Rachas > 3 días por debajo de la media (Check-in)")
+    ci_fields = [f for f in ["recuperacion", "fatiga", "sueno", "stress", "dolor"] if f in d.columns]
+    if not ci_fields or "fecha_dia" not in d.columns or "nombre" not in d.columns:
+        st.info("No hay datos de Check-in suficientes para calcular rachas.")
+        return
+    ci_src = d.copy()
+    for k in ci_fields:
+        ci_src[k] = pd.to_numeric(ci_src[k], errors="coerce")
+    ci_src = ci_src.dropna(subset=ci_fields + ["fecha_dia", "nombre"]) if ci_src is not None else ci_src
+    if ci_src.empty:
+        st.info("No hay datos de Check-in suficientes para calcular rachas.")
+        return
+    ci_player_day = ci_src.groupby(["fecha_dia", "nombre"], as_index=False)[ci_fields].mean()
+    team_means = ci_player_day.groupby("fecha_dia", as_index=False)[ci_fields].mean()
+    for k in ci_fields:
+        team_means[k] = pd.to_numeric(team_means[k], errors="coerce")
+    ci_join = ci_player_day.merge(team_means, on="fecha_dia", suffixes=("", "_team"))
+    for k in ci_fields:
+        ci_join[f"{k}_below"] = ci_join[k] < ci_join[f"{k}_team"]
+    ci_join["any_below"] = ci_join[[f"{k}_below" for k in ci_fields]].any(axis=1)
+    if ci_join.empty or not ci_join["any_below"].any():
+        st.success("Ninguna jugadora acumula rachas > 3 días por debajo de la media.")
+        return
+    rows = []
+    for player, g in ci_join.sort_values(["nombre", "fecha_dia"]).groupby("nombre"):
+        from datetime import timedelta
+        g = g.sort_values("fecha_dia").copy()
+        any_below_series = g["any_below"].astype(bool).tolist()
+        dates = pd.to_datetime(g["fecha_dia"]).dt.date.tolist()
+        current = 0
+        max_streak = 0
+        prev_date = None
+        prev_below = False
+        for idx, v in enumerate(any_below_series):
+            d_i = dates[idx]
+            if v:
+                if prev_date is not None and prev_below and (d_i == prev_date + timedelta(days=1)):
+                    current += 1
+                else:
+                    current = 1
+                if current > max_streak:
+                    max_streak = current
+            else:
+                current = 0
+            prev_date = d_i
+            prev_below = v
+        metric_counts = {}
+        for k in ci_fields:
+            metric_counts[k] = int(g[f"{k}_below"].sum())
+        top_metric = None
+        if metric_counts:
+            top_metric = max(metric_counts, key=metric_counts.get)
+        rows.append({
+            "Jugadora": player,
+            "RachaMaxDias": int(max_streak),
+            "RachaActualDias": int(current),
+            "DiasAfectados": int(g["any_below"].sum()),
+            "MetricaMasFrecuente": top_metric.capitalize() if isinstance(top_metric, str) else None,
+        })
+    streaks = pd.DataFrame(rows)
+    streaks = streaks[streaks["RachaMaxDias"] > 3] if not streaks.empty else streaks
+    if streaks is None or streaks.empty:
+        st.success("Ninguna jugadora con rachas > 3 días por debajo de la media.")
+    else:
+        streaks = streaks.sort_values(["RachaMaxDias", "RachaActualDias", "Jugadora"], ascending=[False, False, True])
+        st.dataframe(streaks)
 
 def _build_individual_report_html(
     player: str,

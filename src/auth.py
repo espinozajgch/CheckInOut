@@ -1,13 +1,25 @@
 import streamlit as st
+import os
 
 import jwt
 import time
 from st_cookies_manager import EncryptedCookieManager
 
+try:
+    secrets_map = dict(st.secrets)
+except Exception:
+    secrets_map = {}
+
 # # --- CONFIG JWT ---
-JWT_SECRET = st.secrets.auth.jwt_secret
-JWT_ALGORITHM = st.secrets.auth.algorithm
-JWT_EXP_DELTA_SECONDS = st.secrets.auth.time
+if "auth" in secrets_map:
+    auth_conf = secrets_map.get("auth", {})
+    JWT_SECRET = auth_conf.get("jwt_secret", os.environ.get("JWT_SECRET", "change-me-dev-secret"))
+    JWT_ALGORITHM = auth_conf.get("algorithm", os.environ.get("JWT_ALGORITHM", "HS256"))
+    JWT_EXP_DELTA_SECONDS = auth_conf.get("time", int(os.environ.get("JWT_EXP_DELTA_SECONDS", "3600")))
+else:
+    JWT_SECRET = os.environ.get("JWT_SECRET", "change-me-dev-secret")
+    JWT_ALGORITHM = os.environ.get("JWT_ALGORITHM", "HS256")
+    JWT_EXP_DELTA_SECONDS = int(os.environ.get("JWT_EXP_DELTA_SECONDS", "3600"))
 
 # # --- CONFIG COOKIES ---
 cookies = EncryptedCookieManager(prefix="dux_check_in_out", password=JWT_SECRET)
@@ -19,7 +31,6 @@ def init_app_state():
     ensure_session_defaults()
     if "flash" not in st.session_state:
         st.session_state["flash"] = None
-
 
 def ensure_session_defaults() -> None:
     """Initialize session state defaults for authentication and UI."""
@@ -37,9 +48,15 @@ def _get_credentials() -> tuple[str, str]:
     Environment variables (optional): TRAINER_USER, TRAINER_PASS
     Defaults: admin / admin
     """
-    user = st.secrets.db.username
-    pwd = st.secrets.db.password
-    rol = st.secrets.db.rol
+    if "db" in secrets_map:
+        db_conf = secrets_map.get("db", {})
+        user = db_conf.get("username", os.environ.get("TRAINER_USER", "admin"))
+        pwd = db_conf.get("password", os.environ.get("TRAINER_PASS", "admin"))
+        rol = db_conf.get("rol", os.environ.get("TRAINER_ROLE", "trainer"))
+    else:
+        user = os.environ.get("TRAINER_USER", "admin")
+        pwd = os.environ.get("TRAINER_PASS", "admin")
+        rol = os.environ.get("TRAINER_ROLE", "trainer")
     return user, pwd, rol
 
 def login_view() -> None:
