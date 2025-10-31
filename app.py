@@ -186,11 +186,9 @@ else:  # Mes
 
 # --- 4. ALERTAS (jugadoras con wellness <15 o dolor >3) ---
 
-# 1️⃣ Identificar jugadoras en riesgo únicas dentro del periodo seleccionado
 jugadoras_riesgo = (
-    df_periodo.groupby("identificacion")
-    .apply(lambda x: ((x["wellness_score"] < 15) | (x["dolor"] > 3)).any())
-    .reset_index(name="en_riesgo")
+    df_periodo.groupby("identificacion", as_index=False)
+    .agg(en_riesgo=("identificacion", lambda _: ((df_periodo["wellness_score"] < 15) | (df_periodo["dolor"] > 3)).any()))
 )
 
 # 2️⃣ Contar jugadoras en riesgo (True) y total de jugadoras únicas
@@ -336,7 +334,7 @@ interpretacion_data = [
 df_interpretacion = pd.DataFrame(interpretacion_data)
 df_interpretacion["Interpretación"] = df_interpretacion["Interpretación"].str.replace("\n", "<br>")
 st.markdown("**Interpretación de las métricas**")
-st.dataframe(df_interpretacion, use_container_width=True, hide_index=True)
+st.dataframe(df_interpretacion, hide_index=True)
 
 # === BRIEFING AUTOMÁTICO ===
 # Crear resumen de una línea para el cuerpo técnico

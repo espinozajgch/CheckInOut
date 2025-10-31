@@ -6,8 +6,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from .io_files import get_template_bytes, load_jugadoras
-from .schema import validate_checkin
 from .metrics import compute_rpe_metrics, RPEFilters
+from src.db_records import load_jugadoras_db, load_competiciones_db
 
 # Brand colors (Dux Logroño): grana primary and black text
 BRAND_PRIMARY = "#800000"  # grana/maroon
@@ -88,185 +88,6 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, modo: str = "r
 
     return jugadora_opt, tipo, turno
 
-#import streamlit as st
-#import pandas as pd
-
-def tactical_periodization_block(record: dict, microciclo_dias: int = 4, partidos_semana: int = 1):
-    """Bloque adaptativo de periodización táctica relativa al día de partido (MD)."""
-
-    # --- Rango dinámico según microciclo ---
-    if partidos_semana >= 2:
-        min_val, max_val = -3, 1   # Dos partidos (Miércoles y Domingo, por ejemplo)
-    else:
-        if microciclo_dias <= 4:
-            min_val, max_val = -3, 0
-        elif microciclo_dias == 5:
-            min_val, max_val = -4, 0
-        else:
-            min_val, max_val = -6, 1
-
-    # --- Descripciones por valor ---
-    descripciones = {
-        -6: ("⚪ Carga regenerativa o base", "gray"),
-        -5: ("⚪ Carga general o acumulación", "gray"),
-        -4: ("🟡 Carga moderada (fuerza/técnica)", "yellow"),
-        -3: ("🟠 Carga alta (físico-táctica)", "orange"),
-        -2: ("🟠 Carga media con componente táctico", "orange"),
-        -1: ("🟢 Activación pre-partido", "green"),
-         0: ("🔴 Día de partido", "red"),
-         1: ("💧 Recuperación post-partido", "blue"),
-    }
-
-    valor = st.slider(
-        "Periodización táctica (relativa al día de partido)",
-        min_value=min_val,
-        max_value=max_val,
-        value=0,
-        step=1,
-        format="%d",
-        help=(
-            "Valores negativos = días previos al partido (MD-3, MD-2, etc.).\n"
-            "0 = Día de partido (MD).\n"
-            "Valores positivos = días posteriores al partido (MD+1, etc.)."
-        ),
-    )
-
-    descripcion, color = descripciones.get(valor, ("", "white"))
-    st.markdown(f"<p style='color:{color}; font-weight:bold;'>{descripcion}</p>", unsafe_allow_html=True)
-
-    record["periodizacion_tactica"] = valor
-    return record
-
-
-def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str]:
-    """Formulario de Check-in (Wellness pre-entrenamiento) con ICS y periodización táctica adaptativa."""
-
-    with st.container():
-        st.markdown("**Check-in diario (pre-entrenamiento)**")
-
-        # --- Variables principales ---
-        c1, c2, c3, c4, c5 = st.columns(5)
-        #c1, c2 = st.columns([0.8,4])
-        with c1:
-            record["recuperacion"] = st.number_input("**Recuperación** :green[:material/arrow_upward_alt:] (:red[**1**] - :green[**5**])", min_value=1, max_value=5, step=1,
-            help="1 = Muy mal recuperado · 5 = Totalmente recuperado")
-        with c2:
-            record["fatiga"] = st.number_input("**Fatiga** :green[:material/arrow_upward_alt:] (:red[**1**] - :green[**5**])", min_value=1, max_value=5, step=1,
-            help="1 = Muy fatigado · 5 = Sin fatiga")
-        with c3:
-            record["sueno"] = st.number_input("**Sueño** :green[:material/arrow_upward_alt:] (:red[**1**] - :green[**5**])", min_value=1, max_value=5, step=1,
-            help="1 = Muy mala calidad . 5 = Excelente calidad")
-        with c4:
-            record["stress"] = st.number_input("**Estrés** :green[:material/arrow_downward_alt:] (:green[**1**] - :red[**5**])", min_value=1, max_value=5, step=1,
-            help="1 = Relajado . 5 = Nivel de estrés muy alto")
-        with c5:
-            record["dolor"] = st.number_input("**Dolor** :green[:material/arrow_downward_alt:] (:green[**1**] - :red[**5**])", min_value=1, max_value=5, step=1,
-            help="1 = Sin dolor . 5 = Dolor severo")
-
-        with c1:
-            # --- Dolor corporal ---
-            if int(record.get("dolor", 0)) > 1:
-                opciones = partes_df["parte"].astype(str).tolist() if partes_df is not None else []
-                record["partes_cuerpo_dolor"] = st.multiselect(
-                    "Partes del cuerpo con dolor", options=opciones
-                )
-            else:
-                record["partes_cuerpo_dolor"] = []
-
-    # --- Campos opcionales ---
-    #st.divider()
-        #with c2:
-        st.caption("Campos opcionales")
-
-        record["en_periodo"] = st.checkbox("En periodo")
-
-        # --- Nuevo bloque de periodización táctica adaptativo ---
-        record = tactical_periodization_block(record, microciclo_dias=6, partidos_semana=1)
-
-        # --- Observación libre ---
-        record["observacion"] = st.text_area("Observación", value="")
-
-        # --- Validación básica ---
-        if record["dolor"] > 1 and not record["partes_cuerpo_dolor"]:
-            return record, False, "Selecciona al menos una parte del cuerpo con dolor."
-        return record, True, ""
-
-
-# def checkin_form(record: dict, partes_df: pd.DataFrame) -> tuple[dict, bool, str]:
-    
-#     with st.container():
-#         st.text("Check-in (pre-entrenamiento)")
-#         c1, c2, c3, c4, c5 = st.columns(5)
-#         with c1:
-#             record["recuperacion"] = st.number_input("Recuperación :red[(1-5)]", min_value=1, max_value=5, step=1)
-#         with c2:
-#             record["fatiga"] = st.number_input("Fatiga :red[(1-5)]", min_value=1, max_value=5, step=1)
-#         with c3:
-#             record["sueno"] = st.number_input("Sueño :red[(1-5)]", min_value=1, max_value=5, step=1)
-#         with c4:
-#             record["stress"] = st.number_input("Estrés :red[(1-5)]", min_value=1, max_value=5, step=1, key="stress_input")
-#         with c5:
-#             record["dolor"] = st.number_input("Dolor :red[(1-5)]", min_value=1, max_value=5, step=1)
-
-#         if int(record.get("dolor", 0)) > 1:
-#             opciones = partes_df["parte"].astype(str).tolist() if partes_df is not None else []
-#             record["partes_cuerpo_dolor"] = st.multiselect(
-#                 "Partes del cuerpo con dolor", options=opciones
-#             )
-#         else:
-#             record["partes_cuerpo_dolor"] = []
-
-
-#     st.divider()
-#     st.caption("Campos opcionales")
-
-#     record["en_periodo"] = st.checkbox("En periodo")
-    
-#     colA, colB = st.columns([2, 1])
-#     with colA:
-#         record["periodizacion_tactica"] = st.slider(
-#             "Periodización táctica (-6 a +6)", min_value=-6, max_value=6, value=0, step=1
-#         )
-
-#     record["observacion"] = st.text_area("Observación", value="")
-
-#     is_valid, msg = validate_checkin(record)
-#     return record, is_valid, msg
-
-def checkout_form(record: dict) -> tuple[dict, bool, str]:
-    
-    with st.container():
-        st.markdown("#### **Check-out (post-entrenamiento)**")
-
-        col1, col2, col3,_, _ = st.columns([.5, .5, .5, 1,1])
-        with col1:
-            record["minutos_sesion"] = st.number_input("Minutos de la sesión", min_value=0, step=1)
-        with col2:
-            record["rpe"] = st.number_input("RPE :red[(1-10)]", min_value=1, max_value=10, step=1)
-        with col3:
-            # Auto-calc UA
-            minutos = int(record.get("minutos_sesion") or 0)
-            rpe = int(record.get("rpe") or 0)
-            record["ua"] = int(rpe * minutos) if minutos > 0 and rpe > 0 else None
-            st.metric("UA (RPE x minutos)", value=record["ua"] if record["ua"] is not None else "-")
-
-        is_valid, msg = validate_checkout(record)
-        return record, is_valid, msg
-
-def validate_checkout(record: dict) -> tuple[bool, str]:
-    # Minutes > 0
-    minutos = record.get("minutos_sesion")
-    if minutos is None or int(minutos) <= 0:
-        return False, "Los minutos de la sesión deben ser un entero positivo."
-    # RPE 1..10
-    rpe = record.get("rpe")
-    if rpe is None or not (1 <= int(rpe) <= 10):
-        return False, "El RPE debe estar entre 1 y 10."
-    # UA computed
-    ua = record.get("ua")
-    if ua is None:
-        return False, "UA no calculado."
-    return True, ""
 
 def preview_record(record: dict) -> None:
     #st.subheader("Previsualización")
@@ -1970,4 +1791,106 @@ def individual_report_view(df: pd.DataFrame, jugadora) -> None:
     # Tabla de últimos registros
     if "fecha" in p.columns:
         p = p.sort_values("fecha", ascending=False)
-    st.dataframe(p, use_container_width=True)
+    st.dataframe(p)
+
+def data_filters(modo: int = 1):
+    jug_df, jug_error = load_jugadoras_db()    
+    comp_df, comp_error = load_competiciones_db()
+    
+    if modo == 1:
+        col1, col2, col3 = st.columns([2,1,2])
+    else:
+        records = load_lesiones_db() 
+
+        if records.empty:    
+            st.warning("No hay datos de lesiones disponibles.")
+            st.stop()   
+        col1, col2, col3, col4 = st.columns([2,1,2,1])
+
+    with col1:
+        competiciones_options = comp_df.to_dict("records")
+        competicion = st.selectbox(
+            "Plantel",
+            options=competiciones_options,
+            format_func=lambda x: f'{x["nombre"]} ({x["codigo"]})',
+            placeholder="Seleccione un plantel",
+            index=3,
+        )
+        
+    with col2:
+        posicion = st.selectbox(
+            "Posición",
+            options=list(MAP_POSICIONES.values()),
+            placeholder="Seleccione una Posición",
+            index=None
+        )
+        
+    with col3:
+        if competicion:
+            codigo_competicion = competicion["codigo"]
+            jug_df_filtrado = jug_df[jug_df["plantel"] == codigo_competicion]
+        else:
+            jug_df_filtrado = jug_df
+
+        if posicion:
+            jug_df_filtrado = jug_df_filtrado[jug_df_filtrado["posicion"] == posicion]
+
+        jugadoras_filtradas = jug_df_filtrado.to_dict("records")
+
+        jugadora_seleccionada = st.selectbox(
+            "Jugadora",
+            options=jugadoras_filtradas,
+            format_func=lambda x: f'{jugadoras_filtradas.index(x) + 1} - {x["nombre"]} {x["apellido"]}',
+            placeholder="Seleccione una Jugadora",
+            index=None
+        )
+
+    if modo >= 2:
+        with col4:
+            # Filtrado por jugadora seleccionada
+            if jugadora_seleccionada:
+                records = records[records["id_jugadora"] == jugadora_seleccionada["identificacion"]]
+            else:
+                if modo == 2:
+                    records = pd.DataFrame()
+                elif modo == 3:
+                    # modo >= 3 → filtrar por todas las jugadoras del plantel o posición
+                    if not jug_df_filtrado.empty and "identificacion" in jug_df_filtrado.columns:
+                        ids_validos = jug_df_filtrado["identificacion"].astype(str).tolist()
+                        records = records[records["id_jugadora"].astype(str).isin(ids_validos)]
+                    else:
+                        records = pd.DataFrame()
+
+            # Verificar si hay registros
+            if records.empty:
+                selected_tipo = st.selectbox(
+                "Tipo de lesión",
+                ["NO APLICA"],
+                disabled=True)
+            else:
+                # Mostrar filtro activo si hay registros
+                tipos = sorted(records["tipo_lesion"].dropna().unique())
+                selected_tipo = st.selectbox(
+                    "Tipo de lesión",
+                    ["Todas"] + tipos,
+                    disabled=False
+                )
+
+                if selected_tipo and selected_tipo != "Todas":
+                    records = records[records["tipo_lesion"] == selected_tipo]
+
+   
+    #st.dataframe(jug_df_filtrado)
+    # Si no hay jugadoras en ese plantel o posición
+    if jug_df_filtrado.empty:
+        #st.warning("⚠️ No hay jugadoras disponibles para este plantel o posición seleccionada.")
+        jugadora_seleccionada = None
+        if modo == 1:
+            return None, posicion
+        else:
+            return None, posicion, pd.DataFrame()  # Devuelve vacío
+
+    if modo == 1:
+        return jugadora_seleccionada, posicion
+    else:
+        return jugadora_seleccionada, posicion, records

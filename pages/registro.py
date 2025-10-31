@@ -3,26 +3,23 @@ import src.config as config
 config.init_config()
 
 from src.auth import init_app_state, login_view, menu
+from src.checkin_ui import checkin_form
+from src.db_records import load_jugadoras_db, load_competiciones_db
+from src.check_out import checkout_form
+
 init_app_state()
 
 from src.ui_components import (
-    checkin_form,
-    checkout_form,
     preview_record,
-    show_missing_file_help,
-    responses_view,
-    rpe_view,
-    checkin_view,
     selection_header,
 )
 
 from src.schema import (
-    new_base_record,
-    validate_checkin
+    new_base_record
 )
 
 from src.io_files import (
-    load_jugadoras, load_partes_json, upsert_jsonl, load_competiciones,
+    load_partes_json, upsert_jsonl,
     get_record_for_player_day_turno, DATA_DIR,
 )
 
@@ -36,17 +33,11 @@ st.header('Registro :red[:material/check_in_out:] ', divider=True)
 menu()
 
 # Load reference data
-jug_df, jug_error = load_jugadoras()
-comp_df, comp_error = load_competiciones()
+jug_df, jug_error = load_jugadoras_db()
+comp_df, comp_error = load_competiciones_db()
 
 if jug_error:
     st.error(jug_error)
-    st.stop()
-
-partes_df, partes_error = load_partes_json()
-
-if partes_error:
-    st.error(partes_error)
     st.stop()
 
 jugadora, tipo, turno = selection_header(jug_df, comp_df)
@@ -77,17 +68,20 @@ if existing_today:
 
 is_valid = False
 
+#st.dataframe(jugadora["sexo"])
+
 if tipo == "Check-in":
-    record, is_valid, validation_msg = checkin_form(record, partes_df)
+    record, is_valid, validation_msg = checkin_form(record, jugadora["sexo"])
 else:
     record, is_valid, validation_msg = checkout_form(record)
 
-# Preview and save
-st.divider()
+if st.session_state["auth"]["rol"].lower() == "admin":
+    # Preview and save
+    st.divider()
 
-if st.checkbox("Previsualización"):
-    preview_record(record)
-    st.caption(f"Datos almacenados en: {DATA_DIR}/registros.jsonl")
+    if st.checkbox("Previsualización"):
+        preview_record(record)
+        st.caption(f"Datos almacenados en: {DATA_DIR}/registros.jsonl")
 
 save_col1, save_col2 = st.columns([1, 2])
 with save_col1:
