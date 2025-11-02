@@ -1,9 +1,9 @@
+import streamlit as st
 import math
 import re
 import numpy as np
 import requests
 import pandas as pd
-import json
 import datetime
 from urllib.parse import urlparse, urlunparse
 
@@ -31,37 +31,9 @@ def get_photo(url):
 
 def clean_df(records):
     columnas_excluir = [
-        "id_registro",
-        "id_jugadora",
-        "fecha_hora",
-        #"posicion",
-        #"tipo_tratamiento",
-        "diagnostico",
-        "descripcion",
-        "fecha",
-        "fecha_dia",
-        "evolucion",
-        "mecanismo",
-        "mecanismo_id",
-        "dias_baja_estimado",
-        "fecha_alta_lesion",
-        "fecha_alta_diagnostico",
-        "fecha_hora_registro",
-        "periodo",
-        "es_recidiva",
-        "tipo_recidiva",
-        "evolucion",
-        "periodo",
-        "lugar_id",
-        "segmento_id",
-        "zona_cuerpo_id",
-        "zona_especifica_id",
-        "id",
-        "impacto_dias_baja_estimado",
-        "nombre",
-        "apellido"
-        #"usuario"
+        "wellness_score"
     ]
+    
     # --- eliminar columnas si existen ---
     df_filtrado = records.drop(columns=[col for col in columnas_excluir if col in records.columns])
 
@@ -74,7 +46,7 @@ def clean_df(records):
         
     #df_filtrado = df_filtrado[orden + [c for c in df_filtrado.columns if c not in orden]]
 
-    df_filtrado = df_filtrado.sort_values("fecha_lesion", ascending=False)
+    df_filtrado = df_filtrado.sort_values("fecha_hora_registro", ascending=False)
     df_filtrado.reset_index(drop=True, inplace=True)
     df_filtrado.index = df_filtrado.index + 1
     return df_filtrado
@@ -221,17 +193,50 @@ def to_date(value):
     except Exception:
         return None
 
-    """Cuenta cuántas sesiones tiene una evolución (campo JSON o lista)."""
-    if not evol_raw:
-        return 0
-    if isinstance(evol_raw, str):
-        try:
-            evol_list = json.loads(evol_raw)
-        except json.JSONDecodeError:
-            return 0
-    elif isinstance(evol_raw, list):
-        evol_list = evol_raw
-    else:
-        return 0
+def show_interpretation(wellness_prom, rpe_prom, ua_total, alertas_count, alertas_pct, delta_ua, total_jugadoras):
+    # --- INTERPRETACIÓN VISUAL Y BRIEFING ---
 
-    return len(evol_list) if isinstance(evol_list, list) else 0
+    # === Generar tabla interpretativa ===
+    interpretacion_data = [
+        {
+            "Métrica": "Índice de Bienestar Promedio",
+            "Valor": f"{wellness_prom if not pd.isna(wellness_prom) else 0}/25",
+            "Interpretación": (
+                "🟢 Óptimo (>20): El grupo mantiene un estado físico y mental adecuado. " if wellness_prom > 20 else
+                "🟡 Moderado (15-19): Existen signos leves de fatiga o estrés. " if 15 <= wellness_prom <= 19 else
+                "🔴 Alerta (<15): El grupo muestra fatiga o malestar significativo. "
+            )
+        },
+        {
+            "Métrica": "RPE Promedio",
+            "Valor": f"{rpe_prom if not pd.isna(rpe_prom) else 0}",
+            "Interpretación": (
+                "🟢 Controlado (<6): El esfuerzo percibido está dentro de los rangos esperados. " if rpe_prom < 6 else
+                "🟡 Medio (6-7): Carga elevada, pero dentro de niveles aceptables. " if 6 <= rpe_prom <= 7 else
+                "🔴 Alto (>7): Percepción de esfuerzo muy alta. "
+            )
+        },
+        {
+            "Métrica": "Carga Total (UA)",
+            "Valor": f"{ua_total}",
+            "Interpretación": (
+                "🟢 Estable: La carga total se mantiene dentro de los márgenes planificados. " if abs(delta_ua) < 10 else
+                "🟡 Variación moderada (10-20%): Ajustes leves de carga detectados. " if 10 <= abs(delta_ua) <= 20 else
+                "🔴 Variación fuerte (>20%): Aumento o descenso brusco de la carga. "
+            )
+        },
+        {
+            "Métrica": "Jugadoras en Zona Roja",
+            "Valor": f"{alertas_count}/{total_jugadoras} ({alertas_pct}%)",
+            "Interpretación": (
+                "🟢 Grupo estable: Ninguna jugadora muestra indicadores de riesgo. " if alertas_pct == 0 else
+                "🟡 Seguimiento leve (<15%): Algunas jugadoras presentan fatiga o molestias leves. " if alertas_pct <= 15 else
+                "🔴 Riesgo elevado (>15%): Varios casos de fatiga o dolor detectados. "
+            )
+        }
+    ]
+
+    df_interpretacion = pd.DataFrame(interpretacion_data)
+    df_interpretacion["Interpretación"] = df_interpretacion["Interpretación"].str.replace("\n", "<br>")
+    st.markdown("**Interpretación de las métricas**")
+    st.dataframe(df_interpretacion, hide_index=True)

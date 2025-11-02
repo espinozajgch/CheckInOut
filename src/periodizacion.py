@@ -230,7 +230,7 @@ def mostrar_tabla_referencia_wellness():
 
     # --- Datos base ---
     data = {
-        "Variable": ["Recuperación", "Fatiga", "Sueño", "Estrés", "Dolor"],
+        "Variable": ["Recuperación", "Energía", "Sueño", "Estrés", "Dolor"],
         "1": [
             "Muy mal recuperado",
             "Extremadamente cansado",

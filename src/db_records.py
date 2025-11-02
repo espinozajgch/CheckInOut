@@ -1,23 +1,26 @@
+import streamlit as st
 import pandas as pd
-from src.db_connection import get_connection
-import streamlit as st
 import json
+import datetime
+
 from src.schema import MAP_POSICIONES
+from src.db_connection import get_connection
 
-import json
-import streamlit as st
-
-@st.cache_data(ttl=3600)  # Cachea por 1 hora
 def get_records_wellness_db(as_df: bool = True):
     """
-    Carga todos los registros de la tabla 'registros_wellness' desde la base de datos MySQL.
+    Carga todos los registros de la tabla 'wellness' desde la base de datos MySQL,
+    uniendo los nombres descriptivos de los catálogos de estímulos.
+
     - as_df=True  → devuelve un DataFrame (por defecto)
     - as_df=False → devuelve lista de diccionarios
-    
-    Añade columnas auxiliares:
-    - fecha (datetime)
-    - fecha_dia (date)
-    - partes_cuerpo_dolor (como lista Python si está en JSON)
+
+    Joins:
+    - wellness.id_tipo_estimulo → estimulos_campo.id
+    - wellness.id_tipo_readaptacion → estimulos_readaptacion.id
+
+    Añade columnas procesadas:
+    - partes_cuerpo_dolor (list Python)
+    - fecha_sesion (datetime)
     """
 
     conn = get_connection()
@@ -27,7 +30,34 @@ def get_records_wellness_db(as_df: bool = True):
 
     try:
         query = """
-            SELECT * FROM registros_wellness ORDER BY fecha_hora DESC;
+            SELECT 
+                w.id,
+                w.identificacion,
+                w.fecha_sesion,
+                w.tipo,
+                w.turno,
+                w.recuperacion,
+                w.fatiga,
+                w.sueno,
+                w.stress,
+                w.dolor,
+                w.partes_cuerpo_dolor,
+                w.periodizacion_tactica,
+                ec.nombre AS tipo_estimulo,
+                er.nombre AS tipo_readaptacion,
+                w.minutos_sesion,
+                w.rpe,
+                w.ua,
+                w.en_periodo,
+                w.observacion,
+                w.fecha_hora_registro,
+                w.usuario
+            FROM wellness AS w
+            LEFT JOIN estimulos_campo AS ec 
+                ON w.id_tipo_estimulo = ec.id
+            LEFT JOIN estimulos_readaptacion AS er 
+                ON w.id_tipo_readaptacion = er.id
+            ORDER BY w.fecha_hora_registro DESC;
         """
 
         cursor = conn.cursor(dictionary=True)
@@ -38,29 +68,27 @@ def get_records_wellness_db(as_df: bool = True):
         if not rows:
             return pd.DataFrame() if as_df else []
 
+        # --- Crear DataFrame ---
         df = pd.DataFrame(rows)
 
-        # --- Procesar fechas ---
-        df["fecha"] = pd.to_datetime(df["fecha_hora"], errors="coerce")
-        df["fecha_dia"] = df["fecha"].dt.date
-
-        # --- Procesar JSON de partes_cuerpo_dolor ---
+        # --- Procesar JSON (partes_cuerpo_dolor) ---
         if "partes_cuerpo_dolor" in df.columns:
             df["partes_cuerpo_dolor"] = df["partes_cuerpo_dolor"].apply(
                 lambda x: json.loads(x) if isinstance(x, str) and x.strip().startswith("[") else []
             )
 
-        # --- Reemplazar NaN con valores por defecto ---
-        # df = df.fillna({
-        #     "turno": "",
-        #     "observacion": "",
-        #     "partes_cuerpo_dolor": [],
-        # })
+        # --- Procesar fechas ---
+        #if "fecha_sesion" in df.columns:
+        #    df["fecha_sesion"] = pd.to_datetime(df["fecha_sesion"], errors="coerce")
 
-        if as_df:
-            return df
-        else:
-            return df.to_dict(orient="records")
+        if "fecha_hora_registro" in df.columns:
+            df["fecha_hora_registro"] = pd.to_datetime(df["fecha_hora_registro"], errors="coerce")
+
+        # --- Ordenar de forma más reciente a más antigua ---
+        df = df.sort_values(by="fecha_hora_registro", ascending=False)
+
+        # --- Retornar según formato deseado ---
+        return df if as_df else df.to_dict(orient="records")
 
     except Exception as e:
         st.error(f":material/warning: Error al cargar registros de wellness: {e}")
@@ -68,19 +96,76 @@ def get_records_wellness_db(as_df: bool = True):
     finally:
         conn.close()
 
-import json
-import datetime
-import streamlit as st
-from src.db_connection import get_connection
+def get_record_for_player_day_turno_db(identificacion: str, fecha_sesion: str, turno: str):
+    """
+    Devuelve el primer registro existente en la BD 'wellness'
+    para una jugadora, una fecha de sesión y un turno dados.
 
+    Parámetros:
+        identificacion (str): ID o documento de la jugadora.
+        fecha_sesion (str): Fecha en formato 'YYYY-MM-DD'.
+        turno (str): Turno del entrenamiento.
 
-def upsert_wellness_record(record: dict) -> bool:
+    Retorna:
+        dict | None: Registro encontrado o None si no existe.
+    """
+
+    conn = get_connection()
+    if not conn:
+        st.error(":material/warning: No se pudo establecer conexión con la base de datos.")
+        return None
+
+    try:
+        cursor = conn.cursor(dictionary=True)
+
+        # --- Normalizar fecha y turno ---
+        turno = (turno or "").strip()
+        if isinstance(fecha_sesion, str):
+            try:
+                fecha_sesion = datetime.date.fromisoformat(fecha_sesion)
+            except ValueError:
+                st.error(f":material/warning: Formato de fecha inválido: {fecha_sesion}")
+                return None
+
+        # --- Buscar el registro en la BD ---
+        query = """
+            SELECT *
+            FROM wellness
+            WHERE identificacion = %s
+              AND fecha_sesion = %s
+              AND turno = %s
+            LIMIT 1;
+        """
+        cursor.execute(query, (identificacion, fecha_sesion, turno))
+        record = cursor.fetchone()
+
+        # --- Convertir JSON a lista Python ---
+        if record and record.get("partes_cuerpo_dolor"):
+            try:
+                record["partes_cuerpo_dolor"] = json.loads(record["partes_cuerpo_dolor"])
+            except Exception:
+                record["partes_cuerpo_dolor"] = []
+
+        return record
+
+    except Exception as e:
+        st.error(f":material/warning: Error al obtener registro de wellness: {e}")
+        return None
+
+    finally:
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+
+def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
     """
     Inserta o actualiza un registro de wellness en la base de datos MySQL.
-    Criterio de unicidad: (identificacion, fecha_dia, turno)
-    
-    Si ya existe un registro con la misma jugadora, fecha y turno → se actualiza.
-    Si no existe → se inserta.
+    Criterio de unicidad: (identificacion, fecha_sesion, turno)
+
+    - Si modo == "checkin": inserta o actualiza todos los campos del registro.
+    - Si modo == "checkout": solo actualiza los campos del post-entrenamiento
+      (minutos_sesion, rpe, ua y tipo).
     """
 
     conn = get_connection()
@@ -89,119 +174,150 @@ def upsert_wellness_record(record: dict) -> bool:
         return False
 
     try:
-        cursor = conn.cursor()
+        cursor = conn.cursor(dictionary=True)
 
-        # --- Preparar datos base ---
-        fecha_hora = record.get("fecha_hora")
-        if isinstance(fecha_hora, str):
-            fecha_hora = datetime.datetime.fromisoformat(fecha_hora)
-        fecha_dia = fecha_hora.date()
+        # ============================================================
+        # 🔹 Normalización de datos
+        # ============================================================
+        fecha_sesion = record.get("fecha_sesion")
+        if isinstance(fecha_sesion, str):
+            fecha_sesion = datetime.date.fromisoformat(fecha_sesion)
 
-        partes_json = json.dumps(record.get("partes_cuerpo_dolor", []))
+        partes_json = json.dumps(record.get("partes_cuerpo_dolor", []), ensure_ascii=False)
 
-        # --- 1️⃣ Verificar si ya existe ---
+        # ============================================================
+        # 🔹 Verificar si ya existe el registro
+        # ============================================================
         check_query = """
-            SELECT id FROM registros_wellness
+            SELECT id FROM wellness
             WHERE identificacion = %s
-              AND DATE(fecha_hora) = %s
+              AND fecha_sesion = %s
               AND turno = %s
             LIMIT 1;
         """
-        cursor.execute(check_query, (
-            record.get("identificacion"),
-            fecha_dia,
-            record.get("turno"),
-        ))
+        cursor.execute(
+            check_query,
+            (
+                record.get("identificacion"),
+                fecha_sesion,
+                record.get("turno"),
+            ),
+        )
         existing = cursor.fetchone()
 
-        # --- 2️⃣ Si existe → UPDATE ---
+        # ============================================================
+        # 🟡 Si existe → UPDATE
+        # ============================================================
         if existing:
-            update_query = """
-                UPDATE registros_wellness
-                SET 
-                    nombre = %s,
-                    fecha_hora = %s,
-                    tipo = %s,
-                    periodizacion_tactica = %s,
-                    recuperacion = %s,
-                    fatiga = %s,
-                    sueno = %s,
-                    stress = %s,
-                    dolor = %s,
-                    partes_cuerpo_dolor = %s,
-                    minutos_sesion = %s,
-                    rpe = %s,
-                    ua = %s,
-                    en_periodo = %s,
-                    observacion = %s
-                WHERE id = %s;
-            """
-            cursor.execute(update_query, (
-                record.get("nombre"),
-                fecha_hora,
-                record.get("tipo"),
-                record.get("periodizacion_tactica"),
-                record.get("recuperacion"),
-                record.get("fatiga"),
-                record.get("sueno"),
-                record.get("stress"),
-                record.get("dolor"),
-                partes_json,
-                record.get("minutos_sesion"),
-                record.get("rpe"),
-                record.get("ua"),
-                record.get("en_periodo"),
-                record.get("observacion"),
-                existing[0],
-            ))
+            if modo.lower() == "checkout":
+                # --- Solo actualizar los campos de carga post-sesión ---
+                update_query = """
+                    UPDATE wellness
+                    SET 
+                        tipo = 'checkOut',
+                        minutos_sesion = %(minutos_sesion)s,
+                        rpe = %(rpe)s,
+                        ua = %(ua)s,
+                        fecha_hora_registro = CURRENT_TIMESTAMP,
+                        usuario = %(usuario)s
+                    WHERE id = %(id)s;
+                """
+                params = {
+                    "minutos_sesion": record.get("minutos_sesion"),
+                    "rpe": record.get("rpe"),
+                    "ua": record.get("ua"),
+                    "usuario": record.get("usuario"),
+                    "id": existing["id"],
+                }
 
-        # --- 3️⃣ Si no existe → INSERT ---
+            else:
+                # --- Actualización completa (check-in o edición general) ---
+                update_query = """
+                    UPDATE wellness
+                    SET 
+                        tipo = %(tipo)s,
+                        periodizacion_tactica = %(periodizacion_tactica)s,
+                        id_tipo_estimulo = %(id_tipo_estimulo)s,
+                        id_tipo_readaptacion = %(id_tipo_readaptacion)s,
+                        recuperacion = %(recuperacion)s,
+                        fatiga = %(fatiga)s,
+                        sueno = %(sueno)s,
+                        stress = %(stress)s,
+                        dolor = %(dolor)s,
+                        partes_cuerpo_dolor = %(partes_cuerpo_dolor)s,
+                        minutos_sesion = %(minutos_sesion)s,
+                        rpe = %(rpe)s,
+                        ua = %(ua)s,
+                        en_periodo = %(en_periodo)s,
+                        observacion = %(observacion)s,
+                        usuario = %(usuario)s,
+                        fecha_hora_registro = CURRENT_TIMESTAMP
+                    WHERE id = %(id)s;
+                """
+                params = dict(record)
+                params["partes_cuerpo_dolor"] = partes_json
+                params["id"] = existing["id"]
+
+            # --- Logging modo developer ---
+            if st.session_state["auth"]["rol"].lower() == "developer":
+                st.write(f"🟡 Query UPDATE ejecutada (modo={modo.upper()}):")
+                st.code(update_query, language="sql")
+                st.json(params)
+
+            cursor.execute(update_query, params)
+            conn.commit()
+            return True
+
+        # ============================================================
+        # 🟢 Si no existe → INSERT (solo modo checkin)
+        # ============================================================
         else:
+            if modo.lower() == "checkout":
+                st.warning(":material/warning: No existe un check-in previo para este jugador, fecha y turno.")
+                return False
+
             insert_query = """
-                INSERT INTO registros_wellness (
-                    identificacion, nombre, fecha_hora, tipo, turno,
-                    periodizacion_tactica, recuperacion, fatiga, sueno,
-                    stress, dolor, partes_cuerpo_dolor,
-                    minutos_sesion, rpe, ua, en_periodo, observacion
+                INSERT INTO wellness (
+                    identificacion, fecha_sesion, tipo, turno, periodizacion_tactica,
+                    id_tipo_estimulo, id_tipo_readaptacion, recuperacion, fatiga, sueno,
+                    stress, dolor, partes_cuerpo_dolor, minutos_sesion, rpe, ua,
+                    en_periodo, observacion, usuario
                 ) VALUES (
-                    %s, %s, %s, %s, %s,
-                    %s, %s, %s, %s,
-                    %s, %s, %s,
-                    %s, %s, %s, %s, %s
+                    %(identificacion)s, %(fecha_sesion)s, %(tipo)s, %(turno)s, %(periodizacion_tactica)s,
+                    %(id_tipo_estimulo)s, %(id_tipo_readaptacion)s, %(recuperacion)s, %(fatiga)s, %(sueno)s,
+                    %(stress)s, %(dolor)s, %(partes_cuerpo_dolor)s, %(minutos_sesion)s, %(rpe)s, %(ua)s,
+                    %(en_periodo)s, %(observacion)s, %(usuario)s
                 );
             """
-            cursor.execute(insert_query, (
-                record.get("identificacion"),
-                record.get("nombre"),
-                fecha_hora,
-                record.get("tipo"),
-                record.get("turno"),
-                record.get("periodizacion_tactica"),
-                record.get("recuperacion"),
-                record.get("fatiga"),
-                record.get("sueno"),
-                record.get("stress"),
-                record.get("dolor"),
-                partes_json,
-                record.get("minutos_sesion"),
-                record.get("rpe"),
-                record.get("ua"),
-                record.get("en_periodo"),
-                record.get("observacion"),
-            ))
 
-        conn.commit()
-        return True
+            params = dict(record)
+            params["fecha_sesion"] = fecha_sesion
+            params["partes_cuerpo_dolor"] = partes_json
+
+            if st.session_state["auth"]["rol"].lower() == "developer":
+                st.write("🟢 Query INSERT ejecutada:")
+                st.code(insert_query, language="sql")
+                st.json(params)
+
+            cursor.execute(insert_query, params)
+            conn.commit()
+            return True
 
     except Exception as e:
         conn.rollback()
         st.error(f":material/warning: Error al insertar/actualizar registro de wellness: {e}")
+
+        if st.session_state.get("auth", {}).get("rol").lower() == "developer":
+            st.json(record)
+
         return False
 
     finally:
-        cursor.close()
-        conn.close()
-
+        if cursor:
+            cursor.close()
+        if conn:
+            conn.close()
+            
 def get_ultima_lesion_id_por_jugadora(id_jugadora: str) -> str | None:
     """
     Devuelve el ID de la última lesión registrada de una jugadora.
@@ -460,3 +576,34 @@ def load_competiciones_db() -> tuple[pd.DataFrame | None, str | None]:
 
     finally:
         conn.close()
+
+def delete_wellness(ids: list[int]) -> tuple[bool, str]:
+    """
+    Elimina múltiples wellness desde la base de datos.
+
+    Parámetros:
+        ids (list[int]): lista de IDs de wellness a eliminar.
+
+    Retorna:
+        (bool, str): (éxito, mensaje)
+    """
+    if not ids:
+        return False, "No se proporcionaron IDs de wellness."
+
+    try:
+        conn = get_connection()
+        cursor = conn.cursor(dictionary=True)
+
+        # Construir la query dinámica con placeholders
+        query = f"DELETE FROM wellness WHERE id IN ({','.join(['%s'] * len(ids))})"
+        cursor.execute(query, tuple(ids))
+        conn.commit()
+
+        cursor.close()
+        conn.close()
+
+        return True, f"✅ Se eliminaron {cursor.rowcount} registro(s) correctamente."
+
+    except Exception as e:
+        st.error(f":material/warning: Error al eliminar los registros: {e}")
+        return False, f":material/warning: Error al eliminar los registros: {e}"

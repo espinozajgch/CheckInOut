@@ -8,9 +8,9 @@ config.init_config()
 from src.auth import init_app_state, login_view, menu
 init_app_state()
 
-from src.ui_components import individual_report_view, selection_header
+from src.ui_components import selection_header
 from src.db_records import get_records_wellness_db, load_jugadoras_db, load_competiciones_db
-from src.io_files import get_records_df
+
 # Authentication gate
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
@@ -23,23 +23,16 @@ menu()
 jug_df, jug_error = load_jugadoras_db()
 comp_df, comp_error = load_competiciones_db()
 
-jugadora, tipo, turno = selection_header(jug_df, comp_df, modo="reporte")
+jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, modo="reporte")
 
 if not jugadora:
     st.info("Selecciona una jugadora para continuar.")
     st.stop()
 
-#st.dataframe(jugadora)
-
-#df = get_records_wellness_db()
-
-#individual_report_view(df, jugadora)
-
-records = get_records_df()
+records = get_records_wellness_db()
 records = records[records["identificacion"]==jugadora["identificacion"]]
-df_filtrado = records[records["periodizacion_tactica"] <= 1]
-st.dataframe(df_filtrado)
-
+#df_filtrado = records[records["periodizacion_tactica"] <= 1]
+st.dataframe(records)
 
 def mostrar_onda_microciclo(registros):
 
@@ -200,7 +193,7 @@ def mostrar_periodizacion_ultimos_registros(registros, cantidad):
         showlegend=False
     )
 
-mostrar_onda_microciclo(df_filtrado)
+#mostrar_onda_microciclo(df_filtrado)
 #mostrar_periodizacion_semana(records)
 
-mostrar_periodizacion_ultimos_registros(df_filtrado, 15)
+#mostrar_periodizacion_ultimos_registros(df_filtrado, 15)

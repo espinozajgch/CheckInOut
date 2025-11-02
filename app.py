@@ -1,14 +1,14 @@
 import streamlit as st
-from src.io_files import get_records_df
-from src.ui_components import checkin_view, home_view, individual_report_view
+from src.db_records import get_records_wellness_db
 
 import src.config as config
 config.init_config()
 import pandas as pd
 
-
 from src.auth import init_app_state, login_view, menu, validate_login
 init_app_state()
+
+from src.util import show_interpretation, clean_df
 
 validate_login()
 
@@ -17,24 +17,18 @@ if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
 
-
 st.header("Resumen de :red[Wellness]", divider="red")
 menu()
 
-df = get_records_df()
-#home_view(df)
-#checkin_view(df)
+df = get_records_wellness_db()
+
 
 # --- MÉTRICAS INICIALES WELLNESS ---
 if df.empty:
     st.warning("No hay registros de Wellness o RPE disponibles.")
     st.stop()
 
-# Asegurar tipo datetime
-df["fecha_hora"] = pd.to_datetime(df["fecha_hora"], errors="coerce")
-df["fecha"] = df["fecha_hora"].dt.date
-
-# ✅ Crear wellness_score antes de filtrar
+# Crear wellness_score antes de filtrar
 df["wellness_score"] = df[["recuperacion", "fatiga", "sueno", "stress", "dolor"]].sum(axis=1)
 
 # Selector de periodo
@@ -47,22 +41,22 @@ periodo = st.radio(
 
 # --- Filtrado por periodo seleccionado ---
 if periodo == "Último día":
-    fecha_max = df["fecha_hora"].max().date()
-    df_periodo = df[df["fecha"] == fecha_max]
+    fecha_max = df["fecha_hora_registro"].max().date()
+    df_periodo = df[df["fecha_hora_registro"] == fecha_max]
     articulo = "el último día"
 elif periodo == "Semana":
-    fecha_max = df["fecha_hora"].max()
-    df_periodo = df[df["fecha_hora"] >= (fecha_max - pd.Timedelta(days=7))]
+    fecha_max = df["fecha_hora_registro"].max()
+    df_periodo = df[df["fecha_hora_registro"] >= (fecha_max - pd.Timedelta(days=7))]
     articulo = "la última semana"
 else:  # Mes
-    fecha_max = df["fecha_hora"].max()
-    df_periodo = df[df["fecha_hora"] >= (fecha_max - pd.Timedelta(days=30))]
+    fecha_max = df["fecha_hora_registro"].max()
+    df_periodo = df[df["fecha_hora_registro"] >= (fecha_max - pd.Timedelta(days=30))]
     articulo = "el último mes"
 
 # --- Agrupar según periodo (para mini-gráficos) ---
-df["semana"] = df["fecha_hora"].dt.isocalendar().week
-df["mes"] = df["fecha_hora"].dt.month
-df["dia"] = df["fecha_hora"].dt.date
+df["semana"] = df["fecha_hora_registro"].dt.isocalendar().week
+df["mes"] = df["fecha_hora_registro"].dt.month
+df["dia"] = df["fecha_hora_registro"].dt.date
 
 # --- FUNCIONES AUXILIARES ---
 def calc_delta(values):
@@ -77,37 +71,6 @@ def group_trend(df, by_col, target_col, agg="mean"):
         g = df.groupby(by_col)[target_col].mean().reset_index(name="valor")
     g = g.sort_values(by_col)
     return g["valor"].tolist()
-
-# # --- 1. WELLNESS GLOBAL PROMEDIO ---
-# wellness_prom = round(df_periodo["wellness_score"].mean(), 1)
-# chart_wellness = group_trend(df, "dia", "wellness_score", agg="mean")
-# delta_wellness = calc_delta(chart_wellness)
-
-# # --- 2. RPE PROMEDIO ---
-# rpe_prom = round(df_periodo["rpe"].mean(), 1)
-# chart_rpe = group_trend(df, "dia", "rpe", agg="mean")
-# delta_rpe = calc_delta(chart_rpe)
-
-# # --- 3. CARGA TOTAL (UA) ---
-# ua_total = int(df_periodo["ua"].sum())
-# chart_ua = group_trend(df, "dia", "ua", agg="sum")
-# delta_ua = calc_delta(chart_ua)
-
-# # --- 4. ALERTAS (jugadoras con wellness <15 o dolor >3) ---
-# alertas = df_periodo[(df_periodo["wellness_score"] < 15) | (df_periodo["dolor"] > 3)]
-# alertas_count = alertas["nombre"].nunique()
-
-# # Total de jugadoras registradas en el periodo
-# total_jugadoras = df_periodo["nombre"].nunique()
-# if total_jugadoras == 0:
-#     total_jugadoras = 1  # evitar división por cero
-
-# # Porcentaje de jugadoras en riesgo
-# alertas_pct = round((alertas_count / total_jugadoras) * 100, 1)
-
-# # Serie para gráfico
-# chart_alertas = group_trend(df, "dia", "wellness_score", agg="mean")
-# delta_alertas = calc_delta(chart_alertas)
 
 # --- 1. WELLNESS GLOBAL PROMEDIO ---
 wellness_prom = round(df_periodo["wellness_score"].mean(), 1)
@@ -222,7 +185,7 @@ elif periodo == "Semana":
 
 else:  # Mes
     trend_alertas = (
-        df.groupby(["mes", "identificacion"])
+        df.groupby(["mes", "identificacion"], group_keys=False)
         .apply(lambda x: ((x["wellness_score"] < 15) | (x["dolor"] > 3)).any())
         .reset_index(name="en_riesgo")
         .groupby("mes")["en_riesgo"]
@@ -288,53 +251,7 @@ with col4:
 
 
 #st.divider()
-
-# --- INTERPRETACIÓN VISUAL Y BRIEFING ---
-
-# === Generar tabla interpretativa ===
-interpretacion_data = [
-    {
-        "Métrica": "Índice de Bienestar Promedio",
-        "Valor": f"{wellness_prom if not pd.isna(wellness_prom) else 0}/25",
-        "Interpretación": (
-            "🟢 Óptimo (>20): El grupo mantiene un estado físico y mental adecuado. " if wellness_prom > 20 else
-            "🟡 Moderado (15-19): Existen signos leves de fatiga o estrés. " if 15 <= wellness_prom <= 19 else
-            "🔴 Alerta (<15): El grupo muestra fatiga o malestar significativo. "
-        )
-    },
-    {
-        "Métrica": "RPE Promedio",
-        "Valor": f"{rpe_prom if not pd.isna(rpe_prom) else 0}",
-        "Interpretación": (
-            "🟢 Controlado (<6): El esfuerzo percibido está dentro de los rangos esperados. " if rpe_prom < 6 else
-            "🟡 Medio (6-7): Carga elevada, pero dentro de niveles aceptables. " if 6 <= rpe_prom <= 7 else
-            "🔴 Alto (>7): Percepción de esfuerzo muy alta. "
-        )
-    },
-    {
-        "Métrica": "Carga Total (UA)",
-        "Valor": f"{ua_total}",
-        "Interpretación": (
-            "🟢 Estable: La carga total se mantiene dentro de los márgenes planificados. " if abs(delta_ua) < 10 else
-            "🟡 Variación moderada (10-20%): Ajustes leves de carga detectados. " if 10 <= abs(delta_ua) <= 20 else
-            "🔴 Variación fuerte (>20%): Aumento o descenso brusco de la carga. "
-        )
-    },
-    {
-        "Métrica": "Jugadoras en Zona Roja",
-        "Valor": f"{alertas_count}/{total_jugadoras} ({alertas_pct}%)",
-        "Interpretación": (
-            "🟢 Grupo estable: Ninguna jugadora muestra indicadores de riesgo. " if alertas_pct == 0 else
-            "🟡 Seguimiento leve (<15%): Algunas jugadoras presentan fatiga o molestias leves. " if alertas_pct <= 15 else
-            "🔴 Riesgo elevado (>15%): Varios casos de fatiga o dolor detectados. "
-        )
-    }
-]
-
-df_interpretacion = pd.DataFrame(interpretacion_data)
-df_interpretacion["Interpretación"] = df_interpretacion["Interpretación"].str.replace("\n", "<br>")
-st.markdown("**Interpretación de las métricas**")
-st.dataframe(df_interpretacion, hide_index=True)
+show_interpretation(wellness_prom, rpe_prom, ua_total, alertas_count, alertas_pct, delta_ua, total_jugadoras)
 
 # === BRIEFING AUTOMÁTICO ===
 # Crear resumen de una línea para el cuerpo técnico
@@ -369,3 +286,7 @@ st.markdown(
     f"({wellness_prom}/25) con un esfuerzo percibido **{nivel_rpe}** (RPE {rpe_prom}). "
     f"La carga total acumulada es de **{ua_total} UA** y actualmente hay **{estado_alertas}**."
 )
+
+st.divider()
+st.markdown("**Registros del periodo seleccionado**")
+st.dataframe(clean_df(df_periodo), hide_index=True)

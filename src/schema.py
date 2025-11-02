@@ -1,4 +1,4 @@
-from datetime import datetime
+import datetime
 
 # Diccionario de equivalencias
 MAP_POSICIONES = {
@@ -49,20 +49,22 @@ PERIODIZACION = {
 }
 
 
-def new_base_record(id_jugadora: str, nombre_jugadora: str, tipo: str) -> dict:
+def new_base_record(id_jugadora: str, username: str, tipo: str) -> dict:
     """Create a base record structure with defaults.
 
     tipo: 'checkIn' | 'checkOut'
     """
-    now = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    now = datetime.datetime.now().strftime("%Y-%m-%d")
     return {
         "identificacion": id_jugadora,
-        "nombre": nombre_jugadora,
-        "fecha_hora": now,
+        #"nombre": nombre_jugadora,
+        "fecha_sesion": now,
         "tipo": tipo,
         "turno": "",
         # Check-in fields
         "periodizacion_tactica": "",
+        "id_tipo_estimulo": "",
+        "id_tipo_readaptacion": "",
         "recuperacion": None,
         "fatiga": None,
         "sueno": None,
@@ -76,6 +78,8 @@ def new_base_record(id_jugadora: str, nombre_jugadora: str, tipo: str) -> dict:
         # Extras
         "en_periodo": False,
         "observacion": "",
+        "fecha_hora_registro": datetime.datetime.now().isoformat(),
+        "usuario": username
     }
 
 

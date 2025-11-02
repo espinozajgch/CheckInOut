@@ -191,9 +191,9 @@ def menu():
 
         st.page_link("pages/reporte.py", label="Individual", icon=":material/finance:")
         
-        if st.session_state["auth"]["rol"].lower() == "admin":
+        if st.session_state["auth"]["rol"].lower() in ["admin", "developer"]:
             st.subheader("Administración :material/settings:")
-            st.page_link("pages/admin.py", label="Admin", icon=":material/app_registration:")
+            #st.page_link("pages/admin.py", label="Admin", icon=":material/app_registration:")
             st.page_link("pages/files.py", label="Registros", icon=":material/docs:")
         
         btnSalir = st.button("Cerrar Sesión", type="tertiary", icon=":material/logout:")
