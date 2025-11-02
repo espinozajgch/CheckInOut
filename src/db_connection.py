@@ -28,5 +28,5 @@ def get_connection():
         if connection.is_connected():
             return connection
     except mysql.connector.Error as e:
-        st.error(f"❌ Error al conectar con MySQL: {e}")
+        st.error(f":material/warning: Error al conectar con MySQL: {e}")
         return None
