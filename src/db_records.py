@@ -78,8 +78,8 @@ def get_records_wellness_db(as_df: bool = True):
             )
 
         # --- Procesar fechas ---
-        #if "fecha_sesion" in df.columns:
-        #    df["fecha_sesion"] = pd.to_datetime(df["fecha_sesion"], errors="coerce")
+        if "fecha_sesion" in df.columns:
+            df["fecha_sesion"] = pd.to_datetime(df["fecha_sesion"], errors="coerce")
 
         if "fecha_hora_registro" in df.columns:
             df["fecha_hora_registro"] = pd.to_datetime(df["fecha_hora_registro"], errors="coerce")
@@ -87,6 +87,10 @@ def get_records_wellness_db(as_df: bool = True):
         # --- Ordenar de forma más reciente a más antigua ---
         df = df.sort_values(by="fecha_hora_registro", ascending=False)
 
+        if st.session_state["auth"]["rol"].lower() == "developer":
+            df = df[df["usuario"]=="developer"]
+        else:
+            df = df[df["usuario"]!="developer"]
         # --- Retornar según formato deseado ---
         return df if as_df else df.to_dict(orient="records")
 
@@ -146,6 +150,11 @@ def get_record_for_player_day_turno_db(identificacion: str, fecha_sesion: str, t
             except Exception:
                 record["partes_cuerpo_dolor"] = []
 
+        if st.session_state["auth"]["rol"].lower() == "developer":
+            df = df[df["usuario"]=="developer"]
+        else:
+            df = df[df["usuario"]!="developer"]
+            
         return record
 
     except Exception as e:
