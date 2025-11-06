@@ -35,77 +35,127 @@ def _exportable_chart(chart: alt.Chart, key: str, height: int = 300):
         # Fallback: no-op if export failed
         pass
 
+def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd.DataFrame = None, modo: str = "registro") -> pd.DataFrame:
+    """
+    Muestra los filtros principales (Competición, Jugadora, Turno, Tipo/Fechas)
+    y retorna el DataFrame de registros filtrado según las selecciones.
+    """
 
-def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, modo: str = "registros"):
+    # --- Inicialización segura de session_state ---
+    for key in ["competicion", "jugadora_opt", "turno", "tipo", "fecha_rango"]:
+        if key not in st.session_state:
+            st.session_state[key] = None
 
     col1, col2, col3, col4 = st.columns([3, 2, 1.5, 2])
 
+    # --- Selección de competición ---
     with col1:
         competiciones_options = comp_df.to_dict("records")
         competicion = st.selectbox(
             "Plantel",
             options=competiciones_options,
             format_func=lambda x: f'{x["nombre"]} ({x["codigo"]})',
-            placeholder="Seleccione una Competición",
-            index=3
+            index=st.session_state.get("competicion",3),
         )
+        #st.session_state["competicion"] = competiciones_options.index(competicion)
+
+    # --- Selección de jugadora ---
     with col2:
         jugadora_opt = None
-        if jug_df is not None and len(jug_df) > 0:
-            if competicion:
-                codigo_competicion = competicion["codigo"]
-                jug_df_filtrado = jug_df[jug_df["plantel"] == codigo_competicion]
+        if not jug_df.empty:
+            codigo_comp = competicion["codigo"]
+            jug_df_filtrado = jug_df[jug_df["plantel"] == codigo_comp]
+            jugadoras_options = jug_df_filtrado.to_dict("records")
 
-                # Convertir el DataFrame filtrado a lista de opciones
-                jugadoras_filtradas = jug_df_filtrado.to_dict("records")
-            else:
-                jugadoras_filtradas = jug_df.to_dict("records")
-
-            # La nueva columna para el identificacion de la jugadora
             jugadora_opt = st.selectbox(
                 "Jugadora",
-                options=jugadoras_filtradas,
-                format_func=lambda x: f'{jugadoras_filtradas.index(x) + 1} - {x["nombre"]} {x["apellido"]}',
-                placeholder="Seleccione una Jugadora",
-                index=None
+                options=jugadoras_options,
+                format_func=lambda x: f'{x["nombre"]} {x["apellido"]}',
+                index=None,
+                placeholder="Seleccione una Jugadora"
             )
+
+            #st.session_state["jugadora_opt"] = jugadora_opt["id_jugadora"] if jugadora_opt else None
         else:
-            st.warning("No hay jugadoras cargadas.")
-    
+            st.warning(":material/warning: No hay jugadoras cargadas para esta competición.")
+
+    # --- Selección de turno ---
     with col3:
         turno = st.selectbox(
             "Turno",
             options=["Turno 1", "Turno 2", "Turno 3"],
-            index=0)    
-    
-    tipo = None
-    if modo == "registros":
-        with col4:
-            tipo = st.radio("Tipo de registro", options=["Check-in", "Check-out"], horizontal=True)
+            index=st.session_state.get("turno_idx", 0)
+        )
+        #st.session_state["turno_idx"] = ["Turno 1", "Turno 2", "Turno 3"].index(turno)
 
-    start, end = None, None
-    if modo == "reporte":
-        with col4:
-            # --- Rango permitido: últimos 15 días hasta hoy ---
+    # --- Tipo o rango de fechas según modo ---
+    tipo, start, end = None, None, None
+    with col4:
+        if modo == "registro":
+            tipo = st.radio(
+                "Tipo de registro",
+                options=["Check-in", "Check-out"], horizontal=True,
+                index=0 
+            )
+            #if st.session_state.get("tipo") is None else ["Check-in", "Check-out"].index(st.session_state["tipo"])
+            #st.session_state["tipo"] = tipo
+
+        else:  # modo == "reporte"
             hoy = datetime.date.today()
             hace_15_dias = hoy - datetime.timedelta(days=15)
 
-            # --- Definir valores por defecto ---
-            start_default = hace_15_dias
+            start_default = hace_15_dias 
             end_default = hoy
+            #default_rango = st.session_state.get("fecha_rango", (hace_15_dias, hoy))
+            start, end = st.date_input( "Rango de fechas", value=(start_default, end_default), min_value=hace_15_dias, max_value=hoy )
+            #st.session_state["fecha_rango"] = (start, end)
 
-            start, end = st.date_input(
-                "Rango de fechas", value=(start_default, end_default),
-                min_value=hace_15_dias,
-                max_value=hoy
-            )
+    if modo == "registro":
+        return jugadora_opt, tipo, turno
+    
+    # ==================================================
+    # 🧮 FILTRADO DEL DATAFRAME
+    # ==================================================
+    df_filtrado = records_df.copy()
+    
+    if not df_filtrado.empty:
+        # Filtrar por competición (plantel)
+        #if competicion and "codigo" in competicion:
+        #    df_filtrado = df_filtrado[df_filtrado["plantel"] == competicion["codigo"]]
 
-    return jugadora_opt, tipo, turno, start, end
+        # Filtrar por jugadora seleccionada
+        if jugadora_opt:
+            df_filtrado = df_filtrado[df_filtrado["id_jugadora"] == jugadora_opt["id_jugadora"]]
+
+        # Filtrar por turno
+        if turno:
+            df_filtrado = df_filtrado[df_filtrado["turno"] == turno]
+
+        # Filtrar por tipo o fechas
+        if modo == "registros" and tipo:
+            df_filtrado = df_filtrado[df_filtrado["tipo"].str.lower() == tipo.lower()]
+        elif modo == "reporte" and start and end:
+            # Asegurar que fecha_sesion y start/end sean del mismo tipo (date)
+            if pd.api.types.is_datetime64_any_dtype(df_filtrado["fecha_sesion"]):
+                df_filtrado["fecha_sesion"] = df_filtrado["fecha_sesion"].dt.date
+            if hasattr(start, "to_pydatetime"):
+                start = start.date()
+            if hasattr(end, "to_pydatetime"):
+                end = end.date()
+            df_filtrado = df_filtrado[
+                (df_filtrado["fecha_sesion"] >= start) & (df_filtrado["fecha_sesion"] <= end)
+            ]
+    
+        # print(df_filtrado["fecha_sesion"].head())
+        # print(df_filtrado["fecha_sesion"].dtype)
+        # print(type(df_filtrado["fecha_sesion"].iloc[0]))
+
+    return df_filtrado, jugadora_opt, tipo, turno, start, end
 
 def preview_record(record: dict) -> None:
     #st.subheader("Previsualización")
     # Header with key fields
-    jug = record.get("identificacion", "-")
+    jug = record.get("id_jugadora", "-")
     fecha = record.get("fecha_sesion", "-")
     turno = record.get("turno", "-")
     tipo = record.get("tipo", "-")
@@ -140,7 +190,7 @@ def responses_view(df: pd.DataFrame) -> None:
     with st.expander("Filtros", expanded=True):
         col1, col2, col3, col4 = st.columns([1, 1, 1, 1])
         with col1:
-            jugadores = sorted(df["identificacion"].dropna().astype(str).unique().tolist()) if "identificacion" in df.columns else []
+            jugadores = sorted(df["id_jugadora"].dropna().astype(str).unique().tolist()) if "id_jugadora" in df.columns else []
             jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[])
         with col2:
             tipos = ["checkIn", "checkOut"]
@@ -166,7 +216,7 @@ def responses_view(df: pd.DataFrame) -> None:
 
     filtered = df.copy()
     if jug_sel:
-        filtered = filtered[filtered["identificacion"].astype(str).isin(jug_sel)]
+        filtered = filtered[filtered["id_jugadora"].astype(str).isin(jug_sel)]
     if tipo_sel:
         filtered = filtered[filtered["tipo"].isin(tipo_sel)]
     if start and end and "fecha" in filtered.columns:
@@ -256,7 +306,7 @@ def rpe_view(df: pd.DataFrame, jug_sel, turno_sel, start, end) -> None:
             d_min["fecha_sesion"] = pd.to_datetime(d_min["fecha"], errors="coerce").dt.date
         # Aplicar mismos filtros de arriba (jugadoras, turnos, rango)
         if 'jug_sel' in locals() and jug_sel:
-            d_min = d_min[d_min["identificacion"].astype(str).isin(jug_sel)]
+            d_min = d_min[d_min["id_jugadora"].astype(str).isin(jug_sel)]
         if 'turno_sel' in locals() and turno_sel:
             d_min = d_min[d_min["turno"].astype(str).isin(turno_sel)]
         if 'start' in locals() and 'end' in locals() and start and end and "fecha_sesion" in d_min.columns:
@@ -346,22 +396,22 @@ def rpe_view(df: pd.DataFrame, jug_sel, turno_sel, start, end) -> None:
         if 'turno_sel' in locals() and turno_sel:
             d = d[d["turno"].astype(str).isin(turno_sel)]
 
-        if d.empty or "identificacion" not in d.columns:
+        if d.empty or "id_jugadora" not in d.columns:
             st.info("No hay datos válidos para graficar.")
             return
 
         # Agregar por jugadora y día: RPE medio, UA total y PT (si existe)
         per_player_day = (
-            d.groupby(["fecha_sesion", "identificacion"], as_index=False)
+            d.groupby(["fecha_sesion", "id_jugadora"], as_index=False)
             .agg({"rpe": "mean", "ua": "sum"})
         )
         if "periodizacion_tactica" in d.columns:
             try:
                 d_pt = d.copy()
                 d_pt["periodizacion_tactica"] = pd.to_numeric(d_pt["periodizacion_tactica"], errors="coerce")
-                pt_grp = d_pt.groupby(["fecha_sesion", "identificacion"], as_index=False)["periodizacion_tactica"].mean()
+                pt_grp = d_pt.groupby(["fecha_sesion", "id_jugadora"], as_index=False)["periodizacion_tactica"].mean()
                 pt_grp = pt_grp.rename(columns={"periodizacion_tactica": "pt"})
-                per_player_day = per_player_day.merge(pt_grp, on=["fecha_sesion", "identificacion"], how="left")
+                per_player_day = per_player_day.merge(pt_grp, on=["fecha_sesion", "id_jugadora"], how="left")
             except Exception:
                 pass
 
@@ -372,25 +422,25 @@ def rpe_view(df: pd.DataFrame, jug_sel, turno_sel, start, end) -> None:
         )
 
         # Determinar jugadoras a mostrar y ordenarlas
-        all_players = per_player_day["identificacion"].astype(str).unique().tolist()
+        all_players = per_player_day["id_jugadora"].astype(str).unique().tolist()
         if 'jug_sel' in locals() and jug_sel:
             players = [p for p in all_players if p in jug_sel]
         else:
             players = sorted(all_players)
 
         # Cálculo de UA total por jugadora para ordenar si corresponde
-        ua_totals = per_player_day.groupby("identificacion", as_index=False)["ua"].sum().rename(columns={"ua": "ua_total"})
+        ua_totals = per_player_day.groupby("id_jugadora", as_index=False)["ua"].sum().rename(columns={"ua": "ua_total"})
         # Construir dataframe de orden
-        order_df = pd.DataFrame({"identificacion": players})
-        order_df = order_df.merge(ua_totals, on="identificacion", how="left")
+        order_df = pd.DataFrame({"id_jugadora": players})
+        order_df = order_df.merge(ua_totals, on="id_jugadora", how="left")
         order_df["ua_total"] = pd.to_numeric(order_df["ua_total"], errors="coerce").fillna(0)
         if sort_key == "UA total":
             ascending = (sort_order == "Ascendente")
-            order_df = order_df.sort_values(["ua_total", "identificacion"], ascending=[ascending, True])
+            order_df = order_df.sort_values(["ua_total", "id_jugadora"], ascending=[ascending, True])
         else:  # Nombre
             ascending = (sort_order == "Ascendente")
-            order_df = order_df.sort_values(["identificacion"], ascending=[ascending])
-        selected_players = order_df["identificacion"].tolist()
+            order_df = order_df.sort_values(["id_jugadora"], ascending=[ascending])
+        selected_players = order_df["id_jugadora"].tolist()
 
         # Convertir fecha a datetime para ejes ordenados en Altair
         per_player_day = per_player_day.copy()
@@ -401,7 +451,7 @@ def rpe_view(df: pd.DataFrame, jug_sel, turno_sel, start, end) -> None:
         # Dibujar por jugadora
         for player in selected_players:
             st.markdown(f"#### {player}")
-            p_df = per_player_day[per_player_day["identificacion"].astype(str) == str(player)]
+            p_df = per_player_day[per_player_day["id_jugadora"].astype(str) == str(player)]
             if p_df.empty:
                 st.info("Sin datos en el rango para esta jugadora.")
                 continue
@@ -547,8 +597,8 @@ def checkin_view(df: pd.DataFrame) -> None:
             sel_date = st.date_input("Fecha", value=default_date, min_value=min_date, max_value=max_date)
         with f2:
             jugadores = (
-                sorted(d["identificacion"].dropna().astype(str).unique().tolist())
-                if "identificacion" in d.columns
+                sorted(d["id_jugadora"].dropna().astype(str).unique().tolist())
+                if "id_jugadora" in d.columns
                 else []
             )
             jug_sel = st.multiselect("Jugadora(s)", options=jugadores, default=[], placeholder="Selecciona una o mas")
@@ -564,7 +614,7 @@ def checkin_view(df: pd.DataFrame) -> None:
     day_mask = d["fecha"].dt.date == sel_date
     day_df = d[day_mask].copy()
     if 'jug_sel' in locals() and jug_sel:
-        day_df = day_df[day_df["identificacion"].astype(str).isin(jug_sel)]
+        day_df = day_df[day_df["id_jugadora"].astype(str).isin(jug_sel)]
     if 'turno_sel' in locals() and turno_sel:
         day_df = day_df[day_df["turno"].astype(str).isin(turno_sel)]
     if day_df.empty:
@@ -626,7 +676,7 @@ def checkin_view(df: pd.DataFrame) -> None:
         if col in day_df.columns:
             cols.append(col)
 
-    add_if("identificacion")
+    add_if("id_jugadora")
     add_if("fecha_hora")
     add_if("periodizacion_tactica")
     add_if("recuperacion")
@@ -638,7 +688,7 @@ def checkin_view(df: pd.DataFrame) -> None:
     add_if("observacion")
 
     # ensure ICS is aligned to same rows
-    day_df = day_df.merge(d[["fecha_hora", "identificacion", "ICS"]], on=["fecha_hora", "identificacion"], how="left") if "identificacion" in day_df.columns else day_df
+    day_df = day_df.merge(d[["fecha_hora", "id_jugadora", "ICS"]], on=["fecha_hora", "id_jugadora"], how="left") if "id_jugadora" in day_df.columns else day_df
     view = day_df[cols + (["ICS"] if "ICS" in day_df.columns else [])].copy()
 
     # Apply ICS filter if selected
@@ -649,7 +699,7 @@ def checkin_view(df: pd.DataFrame) -> None:
         st.info("No hay registros que coincidan con los filtros.")
         return
     view = view.rename(columns={
-        "identificacion": "Jugadora",
+        "id_jugadora": "Jugadora",
         "fecha_hora": "Fecha",
         "periodizacion_tactica": "Matchday",
         "recuperacion": "Recuperación",
@@ -721,11 +771,11 @@ def checkin_view(df: pd.DataFrame) -> None:
     try:
         # Usar day_df (datos crudos del día seleccionado) para conservar numéricos
         plot_src = day_df.copy()
-        if metric_opt not in plot_src.columns or "identificacion" not in plot_src.columns:
+        if metric_opt not in plot_src.columns or "id_jugadora" not in plot_src.columns:
             st.info("No hay datos suficientes para graficar.")
             return
         # Mantener PT si existe
-        cols_use = ["identificacion", metric_opt] + (["periodizacion_tactica"] if "periodizacion_tactica" in plot_src.columns else [])
+        cols_use = ["id_jugadora", metric_opt] + (["periodizacion_tactica"] if "periodizacion_tactica" in plot_src.columns else [])
         plot_src = plot_src[cols_use].dropna(subset=[metric_opt])
         plot_src[metric_opt] = pd.to_numeric(plot_src[metric_opt], errors="coerce")
         plot_src = plot_src.dropna(subset=[metric_opt])
@@ -733,21 +783,21 @@ def checkin_view(df: pd.DataFrame) -> None:
             st.info("No hay valores para la métrica seleccionada.")
             return
         # Agregar por jugadora por si hubiese múltiples registros; tomar media por jugadora el día
-        g = plot_src.groupby("identificacion", as_index=False)[metric_opt].mean().rename(columns={metric_opt: "valor"})
+        g = plot_src.groupby("id_jugadora", as_index=False)[metric_opt].mean().rename(columns={metric_opt: "valor"})
         if "periodizacion_tactica" in plot_src.columns:
-            pt_per_player = plot_src.groupby("identificacion", as_index=False)["periodizacion_tactica"].mean().rename(columns={"periodizacion_tactica": "pt"})
-            g = g.merge(pt_per_player, on="identificacion", how="left")
+            pt_per_player = plot_src.groupby("id_jugadora", as_index=False)["periodizacion_tactica"].mean().rename(columns={"periodizacion_tactica": "pt"})
+            g = g.merge(pt_per_player, on="id_jugadora", how="left")
         # Orden
         ascending = (sort_order == "Ascendente")
         if sort_key == "Valor":
-            g = g.sort_values(["valor", "identificacion"], ascending=[ascending, True])
+            g = g.sort_values(["valor", "id_jugadora"], ascending=[ascending, True])
         else:
-            g = g.sort_values(["identificacion"], ascending=[ascending])
+            g = g.sort_values(["id_jugadora"], ascending=[ascending])
         team_avg = float(g["valor"].mean()) if not g.empty else None
 
         # Altair chart: barras por jugadora + línea horizontal promedio equipo
         chart = alt.Chart(g).encode(
-            x=alt.X("nombre_jugadora:N", title="Jugadora", sort=g["identificacion"].tolist()),
+            x=alt.X("nombre_jugadora:N", title="Jugadora", sort=g["id_jugadora"].tolist()),
             y=alt.Y("valor:Q", title=f"{metric_opt.capitalize()} (1-5)"),
             tooltip=[
                 "nombre_jugadora:N",
@@ -794,7 +844,7 @@ def checkin_view(df: pd.DataFrame) -> None:
     if jug_err or jug_df is None or jug_df.empty:
         st.info("No se pudo cargar el listado de jugadoras (data/jugadoras.xlsx).")
     else:
-        roster = jug_df["identificacion"].astype(str).tolist()
+        roster = jug_df["id_jugadora"].astype(str).tolist()
         if 'jug_sel' in locals() and jug_sel:
             roster = [j for j in roster if j in jug_sel]
         responded = set(view["Jugadora"].astype(str).unique().tolist()) if "Jugadora" in view.columns else set()
@@ -818,8 +868,8 @@ def checkin_view(df: pd.DataFrame) -> None:
 #         d["fecha_sesion"] = d["fecha"].dt.date
 
 #     jugadores = (
-#         sorted(d["identificacion"].dropna().astype(str).unique().tolist())
-#         if "identificacion" in d.columns
+#         sorted(d["id_jugadora"].dropna().astype(str).unique().tolist())
+#         if "id_jugadora" in d.columns
 #         else []
 #     )
 #     if not jugadores:
@@ -831,7 +881,7 @@ def checkin_view(df: pd.DataFrame) -> None:
 #         player = st.selectbox("Jugadora", options=jugadores, index=0)
 #     with c2:
 #         # Rango de fechas predeterminado al rango completo de la jugadora
-#         d_player = d[d["identificacion"].astype(str) == str(player)]
+#         d_player = d[d["id_jugadora"].astype(str) == str(player)]
 #         if "fecha_sesion" in d_player.columns and not d_player["fecha_sesion"].isna().all():
 #             min_date = d_player["fecha_sesion"].min()
 #             max_date = d_player["fecha_sesion"].max()
@@ -1127,6 +1177,7 @@ def risk_view(df: pd.DataFrame, jugadora, turno, start, end) -> None:
     if start and end and "fecha_sesion" in d.columns:
         mask = (d["fecha_sesion"] >= start) & (d["fecha_sesion"] <= end)
         d = d[mask]
+        
     if 'turno_sel' in locals() and turno_sel:
         d = d[d["turno"].astype(str).isin(turno_sel)]
     if d.empty:
@@ -1144,11 +1195,11 @@ def risk_view(df: pd.DataFrame, jugadora, turno, start, end) -> None:
     dd = dd.dropna(subset=["fecha_sesion"]) if "fecha_sesion" in dd.columns else dd
 
     # Agrupar UA por jugadora y día
-    if dd.empty or "identificacion" not in dd.columns or "fecha_sesion" not in dd.columns:
-        acwr_per_player = pd.DataFrame(columns=["identificacion", "acwr"])
+    if dd.empty or "id_jugadora" not in dd.columns or "fecha_sesion" not in dd.columns:
+        acwr_per_player = pd.DataFrame(columns=["id_jugadora", "acwr"])
     else:
         per_day = (
-            dd.groupby(["identificacion", "fecha_sesion"], as_index=False)["ua"].sum()
+            dd.groupby(["id_jugadora", "fecha_sesion"], as_index=False)["ua"].sum()
             .rename(columns={"ua": "ua_total"})
         )
         # Último día de referencia dentro del rango
@@ -1168,7 +1219,7 @@ def risk_view(df: pd.DataFrame, jugadora, turno, start, end) -> None:
             return float(last_non_na["acwr"].iloc[0]) if not last_non_na.empty else None
 
         acwr_vals = (
-            per_day.groupby("identificacion")
+            per_day.groupby("id_jugadora")
             .apply(compute_acwr_player)
             #.reset_index(name="acwr")
         )
@@ -1256,13 +1307,13 @@ def risk_view(df: pd.DataFrame, jugadora, turno, start, end) -> None:
         # último ICS por jugadora
         ci = ci.sort_values("fecha") if "fecha" in ci.columns else ci
         last_ics = ci.dropna(subset=["ICS"]) if "ICS" in ci.columns else pd.DataFrame()
-        if not last_ics.empty and "identificacion" in last_ics.columns:
-            last_idx = last_ics.groupby("identificacion")["fecha"].idxmax() if "fecha" in last_ics.columns else last_ics.groupby("identificacion").tail(1).index
-            last_ics = last_ics.loc[last_idx, ["identificacion", "ICS"]]
+        if not last_ics.empty and "id_jugadora" in last_ics.columns:
+            last_idx = last_ics.groupby("id_jugadora")["fecha"].idxmax() if "fecha" in last_ics.columns else last_ics.groupby("id_jugadora").tail(1).index
+            last_ics = last_ics.loc[last_idx, ["id_jugadora", "ICS"]]
         else:
-            last_ics = pd.DataFrame(columns=["identificacion", "ICS"])
+            last_ics = pd.DataFrame(columns=["id_jugadora", "ICS"])
     else:
-        last_ics = pd.DataFrame(columns=["identificacion", "ICS"])
+        last_ics = pd.DataFrame(columns=["id_jugadora", "ICS"])
 
     def ics_to_risk(cat: str) -> float:
         if cat == "ROJO":
@@ -1274,15 +1325,15 @@ def risk_view(df: pd.DataFrame, jugadora, turno, start, end) -> None:
         return 0.5
 
     # Merge ACWR y ICS
-    players = sorted(set(d.get("identificacion", pd.Series(dtype=str)).dropna().astype(str).tolist()))
+    players = sorted(set(d.get("id_jugadora", pd.Series(dtype=str)).dropna().astype(str).tolist()))
     
     if 'jug_sel' in locals() and jug_sel:
         players = [p for p in players if p in jug_sel]
-    risk_df = pd.DataFrame({"identificacion": players})
+    risk_df = pd.DataFrame({"id_jugadora": players})
 
  
-    risk_df = risk_df.merge(acwr_per_player, on="identificacion", how="left")
-    risk_df = risk_df.merge(last_ics, on="identificacion", how="left")
+    risk_df = risk_df.merge(acwr_per_player, on="id_jugadora", how="left")
+    risk_df = risk_df.merge(last_ics, on="id_jugadora", how="left")
     risk_df["risk_acwr"] = risk_df["acwr"].apply(acwr_to_risk)
     risk_df["risk_ics"] = risk_df["ICS"].apply(ics_to_risk)
     risk_df["riesgo"] = (w_rpe * risk_df["risk_acwr"]) + ((1.0 - w_rpe) * risk_df["risk_ics"]) if "risk_acwr" in risk_df.columns else risk_df["risk_ics"]
@@ -1305,14 +1356,14 @@ def risk_view(df: pd.DataFrame, jugadora, turno, start, end) -> None:
         )
 
     # Ordenar por riesgo
-    risk_df = risk_df.sort_values(["riesgo", "identificacion"], ascending=[False, True])
+    risk_df = risk_df.sort_values(["riesgo", "id_jugadora"], ascending=[False, True])
 
     # Gráfico de barras
     plot = risk_df.copy()
     plot["riesgo_pct"] = (plot["riesgo"].clip(0, 1) * 100.0).round(1)
     chart = alt.Chart(plot).encode(
         x=alt.X("riesgo_pct:Q", title="Proximidad al riesgo (%)", scale=alt.Scale(domain=[0, 100])),
-        y=alt.Y("nombre_jugadora:N", sort=plot["identificacion"].tolist(), title="Jugadora"),
+        y=alt.Y("nombre_jugadora:N", sort=plot["id_jugadora"].tolist(), title="Jugadora"),
         color=alt.Color("riesgo_pct:Q", scale=alt.Scale(scheme="reds"), legend=None),
         tooltip=[
             "nombre_jugadora:N",
@@ -1325,9 +1376,9 @@ def risk_view(df: pd.DataFrame, jugadora, turno, start, end) -> None:
 
     # Tabla detallada
     st.divider()
-    show_tbl = plot[["identificacion", "acwr", "risk_acwr", "ICS", "risk_ics", "riesgo", "riesgo_pct"]].copy()
+    show_tbl = plot[["id_jugadora", "acwr", "risk_acwr", "ICS", "risk_ics", "riesgo", "riesgo_pct"]].copy()
     show_tbl = show_tbl.rename(columns={
-        "identificacion": "Jugadora",
+        "id_jugadora": "Jugadora",
         "acwr": "ACWR",
         "risk_acwr": "Riesgo ACWR (0-1)",
         "ICS": "ICS",
@@ -1382,11 +1433,11 @@ def home_view(df: pd.DataFrame) -> None:
                 except Exception:
                     team_ua_total = None
         # Filtro por jugadora (solo nombres presentes ayer)
-        players = sorted(d_y.get("identificacion", pd.Series([], dtype=str)).dropna().astype(str).unique().tolist())
+        players = sorted(d_y.get("id_jugadora", pd.Series([], dtype=str)).dropna().astype(str).unique().tolist())
         sel = st.selectbox("Filtrar jugadora (día anterior)", options=["(Todas)"] + players, index=0)
         selected_player = None if sel == "(Todas)" else sel
         if selected_player:
-            d_y = d_y[d_y["identificacion"].astype(str) == selected_player]
+            d_y = d_y[d_y["id_jugadora"].astype(str) == selected_player]
         # KPIs del día anterior con filtro aplicado
         if not d_y.empty:
             if "rpe" in d_y.columns:
@@ -1427,7 +1478,7 @@ def home_view(df: pd.DataFrame) -> None:
     if have_wellness and "id_jugadora" in d.columns:
         d_ci = d.dropna(subset=have_wellness, how="any").copy()
         if selected_player:
-            d_ci = d_ci[d_ci.get("identificacion", "").astype(str) == selected_player]
+            d_ci = d_ci[d_ci.get("id_jugadora", "").astype(str) == selected_player]
         if not d_ci.empty:
             d_ci = d_ci.sort_values("fecha")
             last_ci = d_ci.groupby("id_jugadora", as_index=False).tail(1)
@@ -1449,24 +1500,24 @@ def home_view(df: pd.DataFrame) -> None:
             if len(last_ci) > 0:
                 risk_pct = 100.0 * (last_ci["riesgo"] >= threshold).mean()
             # Preparar filas de riesgo con detalles (componentes wellness + UA/RPE de ayer)
-            name_col = "identificacion" if "identificacion" in last_ci.columns else None
+            name_col = "id_jugadora" if "id_jugadora" in last_ci.columns else None
             if name_col:
                 risk_subset = last_ci[last_ci["riesgo"] >= threshold].copy()
                 # Adjuntar UA/RPE de ayer por jugadora si existen
-                if not d_y.empty and "identificacion" in d_y.columns:
+                if not d_y.empty and "id_jugadora" in d_y.columns:
                     # Agregar UA y RPE de ayer (sum/mean) por jugadora
                     map_ua = (
-                        d_y.groupby("identificacion")["ua"].sum(min_count=1).to_dict() if "ua" in d_y.columns else {}
+                        d_y.groupby("id_jugadora")["ua"].sum(min_count=1).to_dict() if "ua" in d_y.columns else {}
                     )
                     map_rpe = (
-                        d_y.groupby("identificacion")["rpe"].mean().to_dict() if "rpe" in d_y.columns else {}
+                        d_y.groupby("id_jugadora")["rpe"].mean().to_dict() if "rpe" in d_y.columns else {}
                     )
                 else:
                     map_ua, map_rpe = {}, {}
                 for _, row in risk_subset.iterrows():
                     name = str(row.get(name_col, ""))
                     det = {
-                        "identificacion": name,
+                        "id_jugadora": name,
                         "riesgo": float(row.get("riesgo", 0) or 0),
                         "recuperacion": row.get("recuperacion"),
                         "fatiga": row.get("fatiga"),
@@ -1503,7 +1554,7 @@ def home_view(df: pd.DataFrame) -> None:
         # Ordenar por mayor riesgo
         at_risk_rows = sorted(at_risk_rows, key=lambda x: x.get("riesgo", 0), reverse=True)
         for det in at_risk_rows:
-            name = det.get("identificacion", "-")
+            name = det.get("id_jugadora", "-")
             cols = st.columns([1, 8])
             with cols[0]:
                 clicked = st.button("Ver informe", key=f"risk_go_{name}")
@@ -1530,7 +1581,7 @@ def individual_report_view(df: pd.DataFrame, jugadora) -> None:
     """Informe individual de una jugadora con sus registros recientes.
     Muestra últimos registros de Check-in y Check-out, y KPIs simples.
     """
-    st.subheader(f"Reporte individual — {jugadora['identificacion']}")
+    st.subheader(f"Reporte individual — {jugadora['id_jugadora']}")
     if df is None or df.empty:
         st.info("No hay registros aún.")
         return
@@ -1539,11 +1590,11 @@ def individual_report_view(df: pd.DataFrame, jugadora) -> None:
     if "fecha" not in d.columns and "fecha_hora" in d.columns:
         d["fecha"] = pd.to_datetime(d["fecha_hora"], errors="coerce")
 
-    # Filtrar por identificacion
-    if "identificacion" not in d.columns:
+    # Filtrar por id_jugadora
+    if "id_jugadora" not in d.columns:
         st.info("No hay columna 'nombre_jugadora' en los datos.")
         return
-    p = d[d["identificacion"].astype(str) == str(jugadora["identificacion"])].copy()
+    p = d[d["id_jugadora"].astype(str) == str(jugadora["id_jugadora"])].copy()
     if p.empty:
         st.info("Sin registros para esta jugadora.")
         return
@@ -1618,7 +1669,7 @@ def data_filters(modo: int = 1):
         competicion = st.selectbox(
             "Plantel",
             options=competiciones_options,
-            format_func=lambda x: f'{x["identificacion"]} ({x["codigo"]})',
+            format_func=lambda x: f'{x["id_jugadora"]} ({x["codigo"]})',
             placeholder="Seleccione un plantel",
             index=3,
         )
@@ -1646,7 +1697,7 @@ def data_filters(modo: int = 1):
         jugadora_seleccionada = st.selectbox(
             "Jugadora",
             options=jugadoras_filtradas,
-            format_func=lambda x: f'{jugadoras_filtradas.index(x) + 1} - {x["identificacion"]} {x["apellido"]}',
+            format_func=lambda x: f'{jugadoras_filtradas.index(x) + 1} - {x["id_jugadora"]} {x["apellido"]}',
             placeholder="Seleccione una Jugadora",
             index=None
         )
@@ -1655,14 +1706,14 @@ def data_filters(modo: int = 1):
         with col4:
             # Filtrado por jugadora seleccionada
             if jugadora_seleccionada:
-                records = records[records["id_jugadora"] == jugadora_seleccionada["identificacion"]]
+                records = records[records["id_jugadora"] == jugadora_seleccionada["id_jugadora"]]
             else:
                 if modo == 2:
                     records = pd.DataFrame()
                 elif modo == 3:
                     # modo >= 3 → filtrar por todas las jugadoras del plantel o posición
-                    if not jug_df_filtrado.empty and "identificacion" in jug_df_filtrado.columns:
-                        ids_validos = jug_df_filtrado["identificacion"].astype(str).tolist()
+                    if not jug_df_filtrado.empty and "id_jugadora" in jug_df_filtrado.columns:
+                        ids_validos = jug_df_filtrado["id_jugadora"].astype(str).tolist()
                         records = records[records["id_jugadora"].astype(str).isin(ids_validos)]
                     else:
                         records = pd.DataFrame()

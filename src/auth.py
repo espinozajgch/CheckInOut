@@ -189,7 +189,7 @@ def menu():
         st.page_link("pages/rpe.py", label="RPE", icon=":material/accessible_menu:")
         st.page_link("pages/riesgo.py", label="Riesgo", icon=":material/falling:")
 
-        st.page_link("pages/reporte.py", label="Individual", icon=":material/finance:")
+        #st.page_link("pages/reporte.py", label="Individual", icon=":material/finance:")
         
         if st.session_state["auth"]["rol"].lower() in ["admin", "developer"]:
             st.subheader("Administración :material/settings:")

@@ -36,7 +36,7 @@ periodo = st.radio(
     "Tendencias:",
     ["Último día", "Semana", "Mes"],
     horizontal=True,
-    index=0  # "Último día" por defecto
+    index=2  # "Último día" por defecto
 )
 
 # --- Filtrado por periodo seleccionado ---
@@ -150,8 +150,8 @@ else:  # Mes
 # --- 4. ALERTAS (jugadoras con wellness <15 o dolor >3) ---
 
 jugadoras_riesgo = (
-    df_periodo.groupby("identificacion", as_index=False)
-    .agg(en_riesgo=("identificacion", lambda _: ((df_periodo["wellness_score"] < 15) | (df_periodo["dolor"] > 3)).any()))
+    df_periodo.groupby("id_jugadora", as_index=False)
+    .agg(en_riesgo=("id_jugadora", lambda _: ((df_periodo["wellness_score"] < 15) | (df_periodo["dolor"] > 3)).any()))
 )
 
 # 2️⃣ Contar jugadoras en riesgo (True) y total de jugadoras únicas
@@ -171,7 +171,7 @@ if periodo == "Último día":
 elif periodo == "Semana":
     # Agrupar por semana y calcular % de jugadoras únicas en riesgo por semana
     trend_alertas = (
-        df.groupby(["semana", "identificacion"])
+        df.groupby(["semana", "id_jugadora"])
         .apply(lambda x: ((x["wellness_score"] < 15) | (x["dolor"] > 3)).any())
         .reset_index(name="en_riesgo")
         .groupby("semana")["en_riesgo"]
@@ -185,7 +185,7 @@ elif periodo == "Semana":
 
 else:  # Mes
     trend_alertas = (
-        df.groupby(["mes", "identificacion"], group_keys=False)
+        df.groupby(["mes", "id_jugadora"], group_keys=False)
         .apply(lambda x: ((x["wellness_score"] < 15) | (x["dolor"] > 3)).any())
         .reset_index(name="en_riesgo")
         .groupby("mes")["en_riesgo"]

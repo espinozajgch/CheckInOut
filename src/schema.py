@@ -56,7 +56,7 @@ def new_base_record(id_jugadora: str, username: str, tipo: str) -> dict:
     """
     now = datetime.datetime.now().strftime("%Y-%m-%d")
     return {
-        "identificacion": id_jugadora,
+        "id_jugadora": id_jugadora,
         #"nombre": nombre_jugadora,
         "fecha_sesion": now,
         "tipo": tipo,

@@ -18,10 +18,9 @@ st.header('Riesgo de :red[lesión (proximidad)]', divider="red")
 menu()
 
 # Load reference data
-jug_df, jug_error = load_jugadoras_db()
-comp_df, comp_error = load_competiciones_db()
+jug_df = load_jugadoras_db()
+comp_df = load_competiciones_db()
+wellness_df = get_records_wellness_db()
 
-jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, modo="reporte")
-
-df = get_records_wellness_db()
+df, jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, wellness_df, modo="reporte")
 risk_view(df, jugadora, turno, start, end)

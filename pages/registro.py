@@ -24,23 +24,19 @@ st.header('Registro :red[:material/check_in_out:] ', divider=True)
 menu()
 
 # Load reference data
-jug_df, jug_error = load_jugadoras_db()
-comp_df, comp_error = load_competiciones_db()
+jug_df = load_jugadoras_db()
+comp_df = load_competiciones_db()
 
-if jug_error:
-    st.error(jug_error)
-    st.stop()
-
-jugadora, tipo, turno, _, _ = selection_header(jug_df, comp_df)
-
-st.divider()
+jugadora, tipo, turno = selection_header(jug_df, comp_df)
 
 if not jugadora:
     st.info("Selecciona una jugadora para continuar.")
     st.stop()
 
+st.divider()
+
 record = new_base_record(
-    id_jugadora=str(jugadora["identificacion"]),
+    id_jugadora=str(jugadora["id_jugadora"]),
     username=st.session_state['auth']['username'],
     tipo="checkin" if tipo == "Check-in" else "checkout",
 )
@@ -48,14 +44,12 @@ record["turno"] = turno or ""
 
 # Notice if will update existing record of today and turno
 existing_today = (
-    get_record_for_player_day_turno_db(record["identificacion"], record["fecha_sesion"], record.get("turno", ""))
+    get_record_for_player_day_turno_db(record["id_jugadora"], record["fecha_sesion"], record.get("turno", ""))
     if jugadora else None
 )
 
 if existing_today:
-    st.info(
-        "Ya existe un registro para esta jugadora hoy en el mismo turno. Al guardar se actualizará el registro existente (upsert)."
-    )
+    st.info("Ya existe un registro para esta jugadora hoy en el mismo turno. Al guardar se actualizará el registro existente (upsert).")
 
 is_valid = False
 

@@ -80,7 +80,7 @@ def generate_synthetic_full(days: int = 30, seed: int = 777, partidos_semana: in
         profile = phase_profiles.get(pt_val, {"rpe": (5, 1), "min": (70, 10), "well": (3, 4)})
 
         for _, row in players.iterrows():
-            jug_id = str(row["identificacion"])
+            jug_id = str(row["id_jugadora"])
             jug_name = str(row["nombre"])
             turno = random.choice(turnos)
 

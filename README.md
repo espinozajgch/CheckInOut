@@ -58,7 +58,7 @@ TRAINER_PASS=mi_password
 
 ```json
 {
-  "identificacion": "...",
+  "id_jugadora": "...",
   "nombre": "...",
   "fecha_hora": "YYYY-MM-DDTHH:MM:SS",
   "tipo": "checkIn|checkOut",

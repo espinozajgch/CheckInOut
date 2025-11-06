@@ -21,16 +21,12 @@ st.header("Administrador de :red[registros]", divider=True)
 menu()
 
 # Load reference data
-jug_df, jug_error = load_jugadoras_db()
-comp_df, comp_error = load_competiciones_db()
+jug_df = load_jugadoras_db()
+comp_df = load_competiciones_db()
 
-if jug_error:
-    st.error(jug_error)
-    st.stop()
+wellness_df = get_records_wellness_db()
 
-jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, modo="reporte")
-
-records = get_records_wellness_db()
+records, jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, wellness_df, modo="reporte")
 
 if records.empty:
     st.error("No se encontraron registros")
