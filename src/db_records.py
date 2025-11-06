@@ -98,11 +98,9 @@ def get_records_wellness_db(as_df: bool = True):
         else:
             df = df[df["usuario"]!="developer"]
 
-
-
-        print(df["fecha_sesion"].head())
-        print(df["fecha_sesion"].dtype)
-        print(type(df["fecha_sesion"].iloc[0]))
+        # print(df["fecha_sesion"].head())
+        # print(df["fecha_sesion"].dtype)
+        # print(type(df["fecha_sesion"].iloc[0]))
 
         # --- Retornar según formato deseado ---
         return df if as_df else df.to_dict(orient="records")
