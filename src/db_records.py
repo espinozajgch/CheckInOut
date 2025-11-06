@@ -106,7 +106,7 @@ def get_records_wellness_db(as_df: bool = True):
         return df if as_df else df.to_dict(orient="records")
 
     except Exception as e:
-        st.error(f":material/warning: Error al cargar registros de wellness: {e}")
+        st.error(f":material/warning: Error al cargar los registros de wellness: {e}")
         return pd.DataFrame() if as_df else []
     finally:
         conn.close()
@@ -142,17 +142,41 @@ def get_record_for_player_day_turno_db(id_jugadora: str, fecha_sesion: str, turn
                 st.error(f":material/warning: Formato de fecha inválido: {fecha_sesion}")
                 return None
 
-        # --- Buscar el registro en la BD ---
-        query = """
-            SELECT *
-            FROM wellness
-            WHERE id_jugadora = %s
-              AND fecha_sesion = %s
-              AND turno = %s
-            LIMIT 1;
-        """
-        cursor.execute(query, (id_jugadora, fecha_sesion, turno))
+        # --- Logging modo developer ---
+        rol_actual = st.session_state["auth"]["rol"].lower().strip()
+
+        if rol_actual == "developer":
+            # --- Buscar el registro en la BD ---
+            query = """
+                SELECT *
+                FROM wellness
+                WHERE id_jugadora = %s
+                AND fecha_sesion = %s
+                AND turno = %s
+                AND usuario = %s
+                LIMIT 1;
+            """
+            usuario = rol_actual
+        else:
+            query = """
+                SELECT *
+                FROM wellness
+                WHERE id_jugadora = %s
+                AND fecha_sesion = %s
+                AND turno = %s
+                AND usuario != %s
+                LIMIT 1;
+            """
+
+            usuario = "developer"
+
+        cursor.execute(query, (id_jugadora, fecha_sesion, turno, usuario))
         record = cursor.fetchone()
+
+        # if rol_actual == "developer":
+        #     st.write(f"🟡 Query ejecutada):")
+        #     st.code(query, language="sql")
+        #     st.json((id_jugadora, fecha_sesion, turno))
 
         # --- Convertir JSON a lista Python ---
         if record and record.get("partes_cuerpo_dolor"):
@@ -161,15 +185,10 @@ def get_record_for_player_day_turno_db(id_jugadora: str, fecha_sesion: str, turn
             except Exception:
                 record["partes_cuerpo_dolor"] = []
 
-            if st.session_state["auth"]["rol"].lower() == "developer":
-                record = record[record["usuario"]=="developer"]
-            else:
-                record = record[record["usuario"]!="developer"]
-                
         return record
 
     except Exception as e:
-        st.error(f":material/warning: Error al obtener registro de wellness: {e}")
+        st.error(f":material/warning: Error al obtener registro de wellness por dia y turno: {e}")
         return None
 
     finally:
