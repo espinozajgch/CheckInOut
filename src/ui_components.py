@@ -41,11 +41,6 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
     y retorna el DataFrame de registros filtrado según las selecciones.
     """
 
-    # --- Inicialización segura de session_state ---
-    for key in ["competicion", "jugadora_opt", "turno", "tipo", "fecha_rango"]:
-        if key not in st.session_state:
-            st.session_state[key] = None
-
     col1, col2, col3, col4 = st.columns([3, 2, 1.5, 2])
 
     # --- Selección de competición ---
@@ -55,7 +50,7 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
             "Plantel",
             options=competiciones_options,
             format_func=lambda x: f'{x["nombre"]} ({x["codigo"]})',
-            index=st.session_state.get("competicion",3),
+            index=3,
         )
         #st.session_state["competicion"] = competiciones_options.index(competicion)
 
@@ -84,8 +79,9 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
         turno = st.selectbox(
             "Turno",
             options=["Turno 1", "Turno 2", "Turno 3"],
-            index=st.session_state.get("turno_idx", 0)
+            index=0
         )
+        #st.session_state.get("turno_idx", 0)
         #st.session_state["turno_idx"] = ["Turno 1", "Turno 2", "Turno 3"].index(turno)
 
     # --- Tipo o rango de fechas según modo ---
