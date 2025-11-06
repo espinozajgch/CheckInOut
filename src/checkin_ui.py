@@ -8,6 +8,7 @@ import datetime
 def checkin_form(record: dict, genero: str) -> tuple[dict, bool, str]:
     """Formulario de Check-in (Wellness pre-entrenamiento) con ICS y periodización táctica adaptativa."""
 
+    #st.session_state.clear()
     if "dia_plus" not in st.session_state:
         st.session_state["dia_plus"] = "MD+1"  # valor por defecto
 
@@ -69,21 +70,21 @@ def checkin_form(record: dict, genero: str) -> tuple[dict, bool, str]:
         st.text_input("Día de la sesión", dia_semana_es, disabled=True)
     with colB:
 
-        opciones_plus = ["MD0", "MD+1", "MD+2", "MD+3", "MD+4", "MD+5", "MD+6"]
+        opciones_plus = ["MD0", "MD+1", "MD+2", "MD+3", "MD+4", "MD+5", "MD+6", "MD > (+6)"]
         dia_plus = st.selectbox(
             "MD+",
             options=opciones_plus,
-            index=opciones_plus.index(st.session_state["dia_plus"]),
+            index=opciones_plus.index(st.session_state.get("dia_plus", 1)),
         )
 
         st.session_state["dia_plus"] = dia_plus 
         
     with colC:
-        opciones_minor = ["MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD0"]
+        opciones_minor = ["MD > (-6)", "MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD0"]
         dia_minor = st.selectbox(
             "MD-",
-            options=["MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD0"],
-            index=opciones_minor.index(st.session_state["dia_minor"]),
+            options=opciones_minor,
+            index=opciones_minor.index(st.session_state.get("dia_minor", 1)),
         )
 
         st.session_state["dia_minor"] = dia_minor
