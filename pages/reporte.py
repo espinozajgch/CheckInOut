@@ -30,7 +30,7 @@ if not jugadora:
     st.stop()
 
 records = get_records_wellness_db()
-records = records[records["identificacion"]==jugadora["identificacion"]]
+records = records[records["id_jugadora"]==jugadora["id_jugadora"]]
 #df_filtrado = records[records["periodizacion_tactica"] <= 1]
 st.dataframe(records)
 

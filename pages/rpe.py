@@ -18,14 +18,10 @@ st.header('RPE / :red[Cargas]', divider=True)
 menu()
 
 # Load reference data
-jug_df, jug_error = load_jugadoras_db()
-comp_df, comp_error = load_competiciones_db()
-
-if jug_error:
-    st.error(jug_error)
-    st.stop()
-
-jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, modo="reporte")
-
+jug_df = load_jugadoras_db()
+comp_df = load_competiciones_db()
 df = get_records_wellness_db()
-rpe_view(df, jugadora, turno, start, end)
+
+df_filtrado, jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, df, modo="reporte")
+
+rpe_view(df_filtrado, jugadora, turno, start, end)

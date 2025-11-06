@@ -46,14 +46,11 @@ def _apply_filters(df: pd.DataFrame, flt: RPEFilters) -> pd.DataFrame:
 
     d = df.copy()
     if flt.jugadores:
-        d = d[d["identificacion"].astype(str).isin(jugadores)]
+        d = d[d["id_jugadora"].astype(str).isin(jugadores)]
     if flt.turnos:
         d = d[d["turno"].astype(str).isin(turnos)]
     if flt.start and flt.end and "fecha_sesion" in d.columns:
         # --- Filtrado por rango de fechas ---
-        # Asegurar que ambas fechas sean Timestamp
-        #flt.start = pd.Timestamp(flt.start)
-        #flt.end = pd.Timestamp(flt.end)
         mask = (d["fecha_sesion"] >= flt.start) & (d["fecha_sesion"] <= flt.end)
         d = d[mask]
     return d
