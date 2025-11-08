@@ -249,8 +249,6 @@ with col4:
         help=f"{alertas_count} de {total_jugadoras} jugadoras ({alertas_pct}%) presentan bienestar <15 o dolor >3 en {articulo}."
     )
 
-
-#st.divider()
 show_interpretation(wellness_prom, rpe_prom, ua_total, alertas_count, alertas_pct, delta_ua, total_jugadoras)
 
 # === BRIEFING AUTOMÁTICO ===
@@ -261,11 +259,14 @@ estado_bienestar = (
     "en fatiga"
 )
 
-nivel_rpe = (
-    "bajo" if rpe_prom < 5 else
-    "moderado" if rpe_prom <= 7 else
-    "alto"
-)
+if rpe_prom is None or rpe_prom == 0 or pd.isna(rpe_prom):
+    nivel_rpe = "sin datos"
+elif rpe_prom < 5:
+    nivel_rpe = "bajo"
+elif rpe_prom <= 7:
+    nivel_rpe = "moderado"
+else:
+    nivel_rpe = "alto"
 
 if alertas_count == 0:
     estado_alertas = "sin jugadoras en zona roja"
@@ -274,16 +275,11 @@ elif alertas_count == 1:
 else:
     estado_alertas = f"{alertas_count} jugadoras en zona roja"
 
-st.caption(
-    "🟢 / 🔴 Los colores en los gráficos muestran *variaciones* respecto al periodo anterior "
-    "(🔺 sube, 🔻 baja). Los colores en la interpretación reflejan *niveles fisiológicos* "
-    "según umbrales deportivos."
-)
 
-st.divider()
+#st.divider()
 st.markdown(
-    f"📋 **Resumen técnico:** El grupo muestra un estado de bienestar **{estado_bienestar}** "
-    f"({wellness_prom}/25) con un esfuerzo percibido **{nivel_rpe}** (RPE {rpe_prom}). "
+    f":material/description: **Resumen técnico:** El grupo muestra un estado de bienestar **{estado_bienestar}** "
+    f"({wellness_prom}/25) con un esfuerzo percibido **{nivel_rpe}** (RPE {rpe_prom if not pd.isna(rpe_prom) else 0}). "
     f"La carga total acumulada es de **{ua_total} UA** y actualmente hay **{estado_alertas}**."
 )
 

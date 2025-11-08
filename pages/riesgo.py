@@ -13,7 +13,8 @@ if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
 
-st.header('Riesgo de :red[lesión (proximidad)]', divider="red")
+#st.header('Riesgo de :red[lesión (proximidad)]', divider="red")
+st.header("Análisis :red[grupal]", divider=True)
 
 menu()
 

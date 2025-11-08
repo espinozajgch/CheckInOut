@@ -236,7 +236,16 @@ def show_interpretation(wellness_prom, rpe_prom, ua_total, alertas_count, alerta
         }
     ]
 
-    df_interpretacion = pd.DataFrame(interpretacion_data)
-    df_interpretacion["Interpretación"] = df_interpretacion["Interpretación"].str.replace("\n", "<br>")
-    st.markdown("**Interpretación de las métricas**")
-    st.dataframe(df_interpretacion, hide_index=True)
+
+
+    with st.expander("Interpretación de las métricas"):
+        df_interpretacion = pd.DataFrame(interpretacion_data)
+        df_interpretacion["Interpretación"] = df_interpretacion["Interpretación"].str.replace("\n", "<br>")
+        #st.markdown("**Interpretación de las métricas**")
+        st.dataframe(df_interpretacion, hide_index=True)
+
+        st.caption(
+        "🟢 / 🔴 Los colores en los gráficos muestran *variaciones* respecto al periodo anterior "
+        "(🔺 sube, 🔻 baja). Los colores en la interpretación reflejan *niveles fisiológicos* "
+        "según umbrales deportivos."
+    )
