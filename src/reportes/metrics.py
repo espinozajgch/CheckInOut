@@ -15,7 +15,6 @@ class RPEFilters:
     start: Optional[date] = None
     end: Optional[date] = None
 
-
 def _prepare_checkout_df(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
@@ -32,27 +31,6 @@ def _prepare_checkout_df(df: pd.DataFrame) -> pd.DataFrame:
     if "fecha" in out.columns and "fecha_sesion" not in out.columns:
         out["fecha_sesion"] = pd.to_datetime(out["fecha_sesion"], errors="coerce").dt.date
     return out.dropna(subset=["fecha_sesion", "ua"])
-
-def _apply_filters(df: pd.DataFrame, flt: RPEFilters) -> pd.DataFrame:
-    # --- Normalizar tipos ---
-    jugadores = flt.jugadores
-    turnos = flt.turnos
-
-    if isinstance(jugadores, str):
-        jugadores = [jugadores]
-    if isinstance(turnos, str):
-        turnos = [turnos]
-
-    d = df.copy()
-    if flt.jugadores:
-        d = d[d["id_jugadora"].astype(str).isin(jugadores)]
-    if flt.turnos:
-        d = d[d["turno"].astype(str).isin(turnos)]
-    # if flt.start and flt.end and "fecha_sesion" in d.columns:
-    #     # --- Filtrado por rango de fechas ---
-    #     mask = (d["fecha_sesion"] >= flt.start) & (d["fecha_sesion"] <= flt.end)
-    #     d = d[mask]
-    return d
 
 def _daily_loads(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -78,18 +56,12 @@ def _daily_loads(df: pd.DataFrame) -> pd.DataFrame:
 
     return grp
 
-
-def _week_id(d: date) -> tuple[int, int]:
-    iso = d.isocalendar()
-    return (iso.year, iso.week)
-
 def _current_week_range(end_day: date) -> tuple[date, date]:
     # Monday to Sunday containing end_day
     weekday = end_day.weekday()  # Monday=0
     start = end_day - timedelta(days=weekday)
     end = start + timedelta(days=6)
     return start, end
-
 
 def _month_range(end_day: date) -> tuple[date, date]:
     start = end_day.replace(day=1)
@@ -99,7 +71,6 @@ def _month_range(end_day: date) -> tuple[date, date]:
         next_month_start = start.replace(month=start.month + 1, day=1)
     end = next_month_start - timedelta(days=1)
     return start, end
-
 
 def compute_rpe_metrics(df_raw: pd.DataFrame, flt: RPEFilters) -> dict:
     df = _prepare_checkout_df(df_raw)
