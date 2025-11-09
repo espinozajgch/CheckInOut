@@ -45,34 +45,78 @@ def rpe_view(df: pd.DataFrame, jug_sel, turno_sel, start, end) -> None:
     resumen = get_resumen_tecnico_carga(metrics)
     st.markdown(resumen, unsafe_allow_html=True)
 
+    st.dataframe(df)
     graficos_individuales(df)
 
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import numpy as np
+import altair as alt
+
+BRAND_PRIMARY = "#1565C0"
+BRAND_TEXT = "#212121"
+
 def graficos_individuales(df: pd.DataFrame):
-    """Gráficos individuales para análisis de carga, bienestar y riesgo de lesión."""
+    """Gráficos individuales para análisis de carga, bienestar, riesgo de lesión y comparación con equipo."""
 
     if df is None or df.empty:
         st.info("No hay datos disponibles para graficar.")
         return
 
-    # Usar el df ya filtrado por jugadora
-    df_player = df.copy()
-    df_player = df_player.sort_values("fecha_sesion")
+    df_player = df.copy().sort_values("fecha_sesion")
 
     st.divider()
     st.markdown("### 📈 **Gráficos individuales**")
 
+    # ============================================================
+    # 🔴🟠🟢 SEMÁFORO DE RIESGO ACTUAL
+    # ============================================================
+    if "ua" in df_player.columns:
+        df_acwr = df_player.copy()
+        df_acwr["ua"] = pd.to_numeric(df_acwr["ua"], errors="coerce")
+        df_acwr["acute7"] = df_acwr["ua"].rolling(7, min_periods=3).mean()
+        df_acwr["chronic28"] = df_acwr["ua"].rolling(28, min_periods=7).mean()
+        df_acwr["acwr"] = df_acwr["acute7"] / df_acwr["chronic28"]
+        df_acwr = df_acwr.dropna(subset=["acwr"])
+        last_acwr = df_acwr["acwr"].iloc[-1] if not df_acwr.empty else np.nan
+    else:
+        last_acwr = np.nan
+
+    last_fatiga = df_player["fatiga"].iloc[-1] if "fatiga" in df_player.columns else np.nan
+
+    def calcular_riesgo(acwr, fatiga):
+        if pd.isna(acwr) and pd.isna(fatiga):
+            return "⚪️", "Sin datos suficientes"
+        if acwr > 1.5 or fatiga >= 4:
+            return "🔴", "Riesgo alto de sobrecarga o fatiga acumulada"
+        elif 1.3 <= acwr <= 1.5 or 3 <= fatiga < 4:
+            return "🟠", "Riesgo moderado; controlar volumen y recuperación"
+        elif 0.8 <= acwr < 1.3 and fatiga < 3:
+            return "🟢", "Riesgo bajo; zona óptima de carga"
+        else:
+            return "⚪️", "Sin clasificación clara"
+
+    icon, desc = calcular_riesgo(last_acwr, last_fatiga)
+    st.markdown(f"<div style='font-size:1.1em; padding:6px 0;'><b>Riesgo actual:</b> {icon} {desc}</div>", unsafe_allow_html=True)
+
+    # ============================================================
+    # 📊 TABS DE VISUALIZACIÓN
+    # ============================================================
     tabs = st.tabs([
-        "RPE y UA", 
-        "Carga interna y minutos", 
-        "Fatiga y ACWR", 
-        "Wellness (1–5)", 
-        "Riesgo de lesión"
+        "RPE y UA",
+        "Carga interna y minutos",
+        "Fatiga y ACWR",
+        "Wellness (1–5)",
+        "Riesgo de lesión",
+        "Comparativa equipo"
     ])
 
     # 1️⃣ TAB: RPE y UA
     with tabs[0]:
         st.markdown("#### Evolución de RPE y Carga Interna (UA)")
-        if not df_player.empty and "ua" in df_player.columns and "rpe" in df_player.columns:
+        if "ua" in df_player.columns and "rpe" in df_player.columns:
             fig_rpe = px.bar(
                 df_player,
                 x="fecha_sesion",
@@ -157,8 +201,6 @@ def graficos_individuales(df: pd.DataFrame):
     # 5️⃣ TAB: Riesgo de lesión
     with tabs[4]:
         st.markdown("#### Riesgo de lesión basado en carga y fatiga")
-
-        # Si tenemos datos de ACWR, fatiga o monotonía, estimamos el riesgo
         if "ua" in df_player.columns:
             df_risk = df_player.copy()
             df_risk["ua"] = pd.to_numeric(df_risk["ua"], errors="coerce")
@@ -194,6 +236,198 @@ def graficos_individuales(df: pd.DataFrame):
         else:
             st.info("No hay datos suficientes para calcular el riesgo de lesión.")
 
+    # 6️⃣ TAB: Comparativa equipo (Altair)
+    with tabs[5]:
+        st.markdown("#### Comparativa individual vs promedio del equipo")
+        if "nombre" not in df.columns:
+            st.info("Faltan los nombres de las jugadoras para calcular la comparación.")
+            return
+
+        d = df.copy()
+        d["fecha_dia"] = pd.to_datetime(d["fecha_sesion"], errors="coerce").dt.date
+        d = d.dropna(subset=["fecha_dia"])
+
+        per_player_day = d.groupby(["fecha_dia", "nombre"], as_index=False).agg({"rpe": "mean", "ua": "sum"})
+        team_daily = per_player_day.groupby("fecha_dia", as_index=False).agg({"rpe": "mean", "ua": "mean"})
+        team_daily["fecha_dia_dt"] = pd.to_datetime(team_daily["fecha_dia"])
+
+        nombre_jugadora = df_player["nombre"].iloc[0] if "nombre" in df_player.columns else "Jugadora"
+        p_df = per_player_day[per_player_day["nombre"] == nombre_jugadora].copy()
+        p_df["fecha_dia_dt"] = pd.to_datetime(p_df["fecha_dia"])
+
+        if not p_df.empty:
+            plot_df = p_df.merge(team_daily[["fecha_dia_dt", "rpe", "ua"]],
+                                 on="fecha_dia_dt", how="left", suffixes=("", "_equipo"))
+
+            base = alt.Chart(plot_df).encode(x=alt.X("fecha_dia_dt:T", title="Fecha"))
+
+            # UA
+            bars_ua = base.mark_bar(color=BRAND_PRIMARY).encode(
+                y=alt.Y("ua:Q", title="UA jugadora"),
+                tooltip=[
+                    "fecha_dia_dt:T",
+                    alt.Tooltip("ua:Q", format=".0f", title="UA jugadora"),
+                    alt.Tooltip("ua_equipo:Q", format=".0f", title="UA equipo")
+                ],
+            )
+            line_ua = base.mark_line(color=BRAND_TEXT, point=True).encode(
+                y=alt.Y("ua_equipo:Q", title="UA promedio equipo")
+            )
+
+            chart_ua = alt.layer(bars_ua, line_ua).resolve_scale(y="independent").properties(
+                height=240, width="container", title=f"{nombre_jugadora}: UA vs promedio equipo"
+            )
+            st.altair_chart(chart_ua)
+        else:
+            st.info("No hay datos suficientes para la comparativa.")
+
+
+# def graficos_individuales(df: pd.DataFrame):
+#     """Gráficos individuales para análisis de carga, bienestar y riesgo de lesión."""
+
+#     if df is None or df.empty:
+#         st.info("No hay datos disponibles para graficar.")
+#         return
+
+#     # Usar el df ya filtrado por jugadora
+#     df_player = df.copy()
+#     df_player = df_player.sort_values("fecha_sesion")
+
+#     st.divider()
+#     st.markdown("### 📈 **Gráficos individuales**")
+
+#     tabs = st.tabs([
+#         "RPE y UA", 
+#         "Carga interna y minutos", 
+#         "Fatiga y ACWR", 
+#         "Wellness (1–5)", 
+#         "Riesgo de lesión"
+#     ])
+
+#     # 1️⃣ TAB: RPE y UA
+#     with tabs[0]:
+#         st.markdown("#### Evolución de RPE y Carga Interna (UA)")
+#         if not df_player.empty and "ua" in df_player.columns and "rpe" in df_player.columns:
+#             fig_rpe = px.bar(
+#                 df_player,
+#                 x="fecha_sesion",
+#                 y="ua",
+#                 color="rpe",
+#                 color_continuous_scale="RdYlGn_r",
+#                 labels={"ua": "Carga Interna (UA)", "fecha_sesion": "Fecha", "rpe": "RPE"},
+#                 title="UA (barras) y RPE (color)"
+#             )
+#             st.plotly_chart(fig_rpe)
+#         else:
+#             st.info("No hay datos de RPE o UA para graficar.")
+
+#     # 2️⃣ TAB: Carga vs minutos
+#     with tabs[1]:
+#         st.markdown("#### Relación entre duración y esfuerzo percibido")
+#         if "minutos_sesion" in df_player.columns and "rpe" in df_player.columns:
+#             fig_mix = go.Figure()
+#             fig_mix.add_trace(go.Bar(
+#                 x=df_player["fecha_sesion"],
+#                 y=df_player["minutos_sesion"],
+#                 name="Minutos",
+#                 marker_color="#1976D2"
+#             ))
+#             fig_mix.add_trace(go.Scatter(
+#                 x=df_player["fecha_sesion"],
+#                 y=df_player["rpe"],
+#                 mode="lines+markers",
+#                 name="RPE",
+#                 yaxis="y2",
+#                 line=dict(color="#E64A19", width=3)
+#             ))
+#             fig_mix.update_layout(
+#                 title="Duración vs RPE por día",
+#                 yaxis=dict(title="Minutos de sesión"),
+#                 yaxis2=dict(title="RPE", overlaying="y", side="right"),
+#                 legend_title_text="Variables"
+#             )
+#             st.plotly_chart(fig_mix)
+#         else:
+#             st.info("No hay datos de minutos o RPE para graficar.")
+
+#     # 3️⃣ TAB: Fatiga y ACWR
+#     with tabs[2]:
+#         st.markdown("#### Evolución del índice ACWR (Relación Agudo:Crónico)")
+#         if "ua" in df_player.columns:
+#             df_acwr = df_player.copy()
+#             df_acwr["ua"] = pd.to_numeric(df_acwr["ua"], errors="coerce")
+#             df_acwr["acute7"] = df_acwr["ua"].rolling(7, min_periods=3).mean()
+#             df_acwr["chronic28"] = df_acwr["ua"].rolling(28, min_periods=7).mean()
+#             df_acwr["acwr"] = df_acwr["acute7"] / df_acwr["chronic28"]
+#             df_acwr = df_acwr.dropna(subset=["acwr"])
+#             if not df_acwr.empty:
+#                 fig_acwr = px.line(df_acwr, x="fecha_sesion", y="acwr", markers=True,
+#                                    title="Evolución del ACWR (7d / 28d)",
+#                                    labels={"acwr": "ACWR", "fecha_sesion": "Fecha"})
+#                 fig_acwr.add_hrect(y0=0.8, y1=1.3, fillcolor="#C8E6C9", opacity=0.3, line_width=0)
+#                 fig_acwr.add_hrect(y0=1.5, y1=3, fillcolor="#FFCDD2", opacity=0.3, line_width=0)
+#                 st.plotly_chart(fig_acwr)
+#             else:
+#                 st.info("No hay suficientes datos para calcular ACWR.")
+#         else:
+#             st.info("No hay datos de carga interna (UA) para calcular ACWR.")
+
+#     # 4️⃣ TAB: Wellness
+#     with tabs[3]:
+#         st.markdown("#### Evolución de los indicadores de bienestar (1–5)")
+#         cols_wellness = ["recuperacion", "fatiga", "sueno", "stress", "dolor"]
+#         if all(c in df_player.columns for c in cols_wellness):
+#             fig_wellness = px.line(
+#                 df_player,
+#                 x="fecha_sesion",
+#                 y=cols_wellness,
+#                 markers=True,
+#                 labels={"value": "Nivel (1–5)", "fecha_sesion": "Fecha", "variable": "Parámetro"},
+#                 title="Evolución de los componentes de Wellness"
+#             )
+#             st.plotly_chart(fig_wellness)
+#         else:
+#             st.info("No hay datos de bienestar para graficar.")
+
+#     # 5️⃣ TAB: Riesgo de lesión
+#     with tabs[4]:
+#         st.markdown("#### Riesgo de lesión basado en carga y fatiga")
+
+#         # Si tenemos datos de ACWR, fatiga o monotonía, estimamos el riesgo
+#         if "ua" in df_player.columns:
+#             df_risk = df_player.copy()
+#             df_risk["ua"] = pd.to_numeric(df_risk["ua"], errors="coerce")
+#             df_risk["acute7"] = df_risk["ua"].rolling(7, min_periods=3).mean()
+#             df_risk["chronic28"] = df_risk["ua"].rolling(28, min_periods=7).mean()
+#             df_risk["acwr"] = df_risk["acute7"] / df_risk["chronic28"]
+#             df_risk["fatiga"] = pd.to_numeric(df_risk.get("fatiga", np.nan), errors="coerce")
+
+#             def riesgo_calc(row):
+#                 if pd.isna(row["acwr"]) or pd.isna(row["fatiga"]):
+#                     return np.nan
+#                 if row["acwr"] > 1.5 or row["fatiga"] >= 4:
+#                     return "Alto"
+#                 elif 1.3 <= row["acwr"] <= 1.5 or 3 <= row["fatiga"] < 4:
+#                     return "Moderado"
+#                 else:
+#                     return "Bajo"
+
+#             df_risk["riesgo_lesion"] = df_risk.apply(riesgo_calc, axis=1)
+
+#             color_map = {"Bajo": "#43A047", "Moderado": "#FB8C00", "Alto": "#E53935"}
+#             fig_risk = px.scatter(
+#                 df_risk,
+#                 x="fecha_sesion",
+#                 y="acwr",
+#                 color="riesgo_lesion",
+#                 color_discrete_map=color_map,
+#                 title="Evolución del riesgo de lesión (según ACWR y fatiga)",
+#                 labels={"acwr": "ACWR", "fecha_sesion": "Fecha", "riesgo_lesion": "Nivel de riesgo"}
+#             )
+#             fig_risk.add_hrect(y0=0.8, y1=1.3, fillcolor="#C8E6C9", opacity=0.3, line_width=0)
+#             st.plotly_chart(fig_risk)
+#         else:
+#             st.info("No hay datos suficientes para calcular el riesgo de lesión.")
 
 # def rpe_view(df: pd.DataFrame, jug_sel, turno_sel, start, end) -> None:
 
