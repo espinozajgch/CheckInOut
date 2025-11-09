@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from .schema import DIAS_SEMANA, PERIODIZACION
 from src.styles import WELLNESS_COLOR_NORMAL, WELLNESS_COLOR_INVERTIDO
 
 def mostrar_tabla_referencia_wellness():
@@ -74,21 +73,6 @@ def mostrar_tabla_referencia_wellness():
             "- En **Recuperación**, **Energía** y **Sueño** → valores altos indican bienestar.\n"
             "- En **Estrés** y **Dolor** → valores bajos indican bienestar (escala invertida)."
         )
-
-def mostrar_tabla_periodizacion():
-    """Muestra la tabla teórica de carga (MD-6 a MD+1) y permite seleccionar un día para ver su detalle."""
-    # === 1️⃣ Datos base de referencia ===
-    df_ref = pd.DataFrame(PERIODIZACION)
-
-    # === 2️⃣ Mostrar tabla en un expander ===
-    with st.expander("Ver tabla teórica de referencia de periodización (MD-6 → MD+1)"):
-        st.dataframe(df_ref.drop(columns=["valor","Carga (1-10)","descripcion_output"]), hide_index=True)
-        st.caption(
-            "Esta tabla representa la **distribución teórica de cargas** dentro de un microciclo competitivo. "
-            "Basada en los modelos de periodización táctica de Frade, Seirul-lo y estudios de Clemente et al. (2020)."
-        )
-    st.divider()
-    return df_ref
 
 def grafico():
     import pandas as pd

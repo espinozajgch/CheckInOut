@@ -1,9 +1,12 @@
-from gc import disable
 import streamlit as st
-from .periodizacion import (mostrar_tabla_referencia_wellness)
+import datetime
+import pandas as pd
 from .db_catalogs import load_catalog_list_db
 from .schema import DIAS_SEMANA
-import datetime
+
+
+from src.styles import WELLNESS_COLOR_NORMAL, WELLNESS_COLOR_INVERTIDO
+
 
 def checkin_form(record: dict, genero: str) -> tuple[dict, bool, str]:
     """Formulario de Check-in (Wellness pre-entrenamiento) con ICS y periodización táctica adaptativa."""
@@ -62,6 +65,13 @@ def checkin_form(record: dict, genero: str) -> tuple[dict, bool, str]:
     st.divider()
     st.markdown("**Periodización táctica**")
 
+    # Días previos al partido (MD-14 a MD0)
+    opciones_minor = [f"MD-{i}" for i in range(14, 0, -1)] + ["MD0"]
+
+    # Días posteriores al partido (MD0 a MD+14)
+    opciones_plus = ["MD0"] + [f"MD+{i}" for i in range(1, 15)]
+
+
     colA, colB, colC, colD, colE  = st.columns([1,1,1,2,2])
     with colA:
         fecha_sesion = datetime.date.today()
@@ -70,7 +80,7 @@ def checkin_form(record: dict, genero: str) -> tuple[dict, bool, str]:
         st.text_input("Día de la sesión", dia_semana_es, disabled=True)
     with colB:
 
-        opciones_plus = ["MD0", "MD+1", "MD+2", "MD+3", "MD+4", "MD+5", "MD+6", "MD > (+6)"]
+        #opciones_plus = ["MD0", "MD+1", "MD+2", "MD+3", "MD+4", "MD+5", "MD+6", "MD+7"]
         dia_plus = st.selectbox(
             "MD+",
             options=opciones_plus,
@@ -80,7 +90,7 @@ def checkin_form(record: dict, genero: str) -> tuple[dict, bool, str]:
         st.session_state["dia_plus"] = dia_plus 
         
     with colC:
-        opciones_minor = ["MD > (-6)", "MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD0"]
+        #opciones_minor = ["MD-7", "MD-6", "MD-5", "MD-4", "MD-3", "MD-2", "MD-1", "MD0"]
         dia_minor = st.selectbox(
             "MD-",
             options=opciones_minor,
@@ -135,3 +145,75 @@ def validate_checkin(record: dict) -> tuple[bool, str]:
         if not record.get("partes_cuerpo_dolor"):
             return False, "Selecciona al menos una parte del cuerpo con dolor."
     return True, ""
+
+def mostrar_tabla_referencia_wellness():
+    """Tabla de referencia explicativa (1-5) con colores tipo semáforo y escalas invertidas en Estrés y Dolor."""
+
+    # --- Datos base ---
+    data = {
+        "Variable": ["Recuperación", "Energía", "Sueño", "Estrés", "Dolor"],
+        "1": [
+            "Muy mal recuperado",
+            "Extremadamente cansado",
+            "Muy mala calidad / Insomnio",
+            "Muy relajado / Positivo",
+            "Sin dolor"
+        ],
+        "2": [
+            "Más fatigado de lo normal",
+            "Fatigado",
+            "Sueño inquieto o corto",
+            "Relajado",
+            "Dolor leve"
+        ],
+        "3": [
+            "Normal",
+            "Normal",
+            "Sueño aceptable",
+            "Estrés controlado",
+            "Molestias leves"
+        ],
+        "4": [
+            "Recuperado",
+            "Ligera fatiga / Buen estado",
+            "Buena calidad de sueño",
+            "Alto nivel de estrés",
+            "Dolor moderado"
+        ],
+        "5": [
+            "Totalmente recuperado",
+            "Energía Máxima",
+            "Excelente descanso",
+            "Muy estresado / Irritable",
+            "Dolor severo"
+        ],
+    }
+
+    df_ref = pd.DataFrame(data).set_index("Variable")
+
+    # --- Función de color por celda (usando estilos globales) ---
+    def color_by_col(col):
+        if col.name not in ["1", "2", "3", "4", "5"]:
+            return [""] * len(col)
+
+        result = []
+        for var in df_ref.index:
+            # Seleccionar paleta normal o invertida según variable
+            cmap = WELLNESS_COLOR_INVERTIDO if var in ["Estrés", "Dolor"] else WELLNESS_COLOR_NORMAL
+            color = cmap[int(col.name)]
+            result.append(
+                f"background-color:{color}; color:white; text-align:center; font-weight:bold;"
+            )
+        return result
+
+    # --- Aplicar estilo ---
+    styled_df = df_ref.style.apply(color_by_col, subset=["1", "2", "3", "4", "5"], axis=0)
+
+    # --- Mostrar tabla en Streamlit ---
+    with st.expander("Ver tabla de referencia de escalas (1–5)"):
+        st.dataframe(styled_df, hide_index=False)
+        st.caption(
+            "**Interpretación:**\n"
+            "- En **Recuperación**, **Energía** y **Sueño** → valores altos indican bienestar.\n"
+            "- En **Estrés** y **Dolor** → valores bajos indican bienestar (escala invertida)."
+        )
