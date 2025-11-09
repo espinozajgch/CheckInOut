@@ -32,6 +32,8 @@ if not st.session_state["auth"]["is_logged_in"]:
 st.header("Resumen de :red[Wellness]", divider="red")
 menu()
 
+#st.session_state.clear()
+
 # ============================================================
 # 📦 CARGA DE DATOS
 # ============================================================
