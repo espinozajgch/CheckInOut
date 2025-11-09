@@ -7,3 +7,4 @@ streamlit==1.50.0
 bcrypt==4.1.2
 mysql-connector-python>=9.0.0
 bcrypt==4.1.2
+plotly>=5.20.0
