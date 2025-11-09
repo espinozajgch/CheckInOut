@@ -62,6 +62,10 @@ else:
         
     record, is_valid, validation_msg = checkout_form(record)
 
+if not is_valid and validation_msg:
+    st.error(validation_msg)
+    st.stop()
+
 if st.session_state["auth"]["rol"].lower() == "developer":
     st.divider()
     if st.checkbox("Previsualización"):
@@ -80,13 +84,12 @@ if submitted:
             if success:
                 st.success(":material/done_all: Registro guardado/actualizado correctamente.")
                 time.sleep(4)
+                st.rerun()
             else:
                 st.error(":material/warning: Error al guardar el registro.")
-            #st.rerun()
+            
     except Exception as e:
         # Captura cualquier error inesperado
         st.error(f":material/warning: Error inesperado al guardar el registros: {e}")
         st.session_state.form_submitted = False
 
-if not is_valid and validation_msg:
-    st.error(validation_msg)

@@ -186,8 +186,8 @@ def menu():
         
         st.subheader("Análisis y Estadísticas  :material/query_stats:")
         #st.page_link("pages/checkin.py", label="Check-in", icon=":material/fact_check:")
-        st.page_link("pages/rpe.py", label="RPE", icon=":material/accessible_menu:")
-        st.page_link("pages/riesgo.py", label="Riesgo", icon=":material/falling:")
+        st.page_link("pages/individual.py", label="Individual", icon=":material/accessible_menu:")
+        st.page_link("pages/grupal.py", label="Grupal", icon=":material/groups:") #falling
 
         #st.page_link("pages/reporte.py", label="Individual", icon=":material/finance:")
         

@@ -39,7 +39,7 @@ def get_records_wellness_db(as_df: bool = True):
                 w.tipo,
                 w.turno,
                 w.recuperacion,
-                w.fatiga,
+                w.fatiga as energia,
                 w.sueno,
                 w.stress,
                 w.dolor,

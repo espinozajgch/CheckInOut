@@ -15,7 +15,6 @@ class RPEFilters:
     start: Optional[date] = None
     end: Optional[date] = None
 
-
 def _prepare_checkout_df(df: pd.DataFrame) -> pd.DataFrame:
     if df is None or df.empty:
         return pd.DataFrame()
@@ -33,39 +32,29 @@ def _prepare_checkout_df(df: pd.DataFrame) -> pd.DataFrame:
         out["fecha_sesion"] = pd.to_datetime(out["fecha_sesion"], errors="coerce").dt.date
     return out.dropna(subset=["fecha_sesion", "ua"])
 
-
-def _apply_filters(df: pd.DataFrame, flt: RPEFilters) -> pd.DataFrame:
-    # --- Normalizar tipos ---
-    jugadores = flt.jugadores
-    turnos = flt.turnos
-
-    if isinstance(jugadores, str):
-        jugadores = [jugadores]
-    if isinstance(turnos, str):
-        turnos = [turnos]
-
-    d = df.copy()
-    if flt.jugadores:
-        d = d[d["id_jugadora"].astype(str).isin(jugadores)]
-    if flt.turnos:
-        d = d[d["turno"].astype(str).isin(turnos)]
-    if flt.start and flt.end and "fecha_sesion" in d.columns:
-        # --- Filtrado por rango de fechas ---
-        mask = (d["fecha_sesion"] >= flt.start) & (d["fecha_sesion"] <= flt.end)
-        d = d[mask]
-    return d
-
 def _daily_loads(df: pd.DataFrame) -> pd.DataFrame:
-    # Sum UA per day
+    """
+    Calcula las cargas diarias sumando UA (RPE × minutos) y minutos de sesión
+    por fecha_sesion. Devuelve un DataFrame con ambas métricas.
+    """
     if df.empty:
-        return pd.DataFrame(columns=["fecha_sesion", "ua_total"])  
-    grp = df.groupby("fecha_sesion", as_index=False)["ua"].sum()
-    grp = grp.rename(columns={"ua": "ua_total"}).sort_values("fecha_sesion")
-    return grp
+        return pd.DataFrame(columns=["fecha_sesion", "ua_total", "minutos_total"])
 
-def _week_id(d: date) -> tuple[int, int]:
-    iso = d.isocalendar()
-    return (iso.year, iso.week)
+    # --- asegurar columnas necesarias ---
+    if "ua" not in df.columns:
+        df["ua"] = 0
+    if "minutos_sesion" not in df.columns:
+        df["minutos_sesion"] = 0
+
+    # --- agrupar ---
+    grp = (
+        df.groupby("fecha_sesion", as_index=False)[["ua", "minutos_sesion"]]
+        .sum(min_count=1)  # evita NaN si todos son NaN
+        .rename(columns={"ua": "ua_total", "minutos_sesion": "minutos_total"})
+        .sort_values("fecha_sesion")
+    )
+
+    return grp
 
 def _current_week_range(end_day: date) -> tuple[date, date]:
     # Monday to Sunday containing end_day
@@ -73,7 +62,6 @@ def _current_week_range(end_day: date) -> tuple[date, date]:
     start = end_day - timedelta(days=weekday)
     end = start + timedelta(days=6)
     return start, end
-
 
 def _month_range(end_day: date) -> tuple[date, date]:
     start = end_day.replace(day=1)
@@ -84,13 +72,15 @@ def _month_range(end_day: date) -> tuple[date, date]:
     end = next_month_start - timedelta(days=1)
     return start, end
 
-
 def compute_rpe_metrics(df_raw: pd.DataFrame, flt: RPEFilters) -> dict:
     df = _prepare_checkout_df(df_raw)
-    df = _apply_filters(df, flt)
-
+    #st.dataframe(df)
+    
+    #df = _apply_filters(df, flt)
+    
     res: dict = {
         "ua_total_dia": None,
+        "minutos_sesion": None,
         "carga_semana": None,
         "carga_mes": None,
         "carga_media_semana": None,
@@ -108,6 +98,7 @@ def compute_rpe_metrics(df_raw: pd.DataFrame, flt: RPEFilters) -> dict:
         return res
 
     daily = _daily_loads(df)
+    
     res["daily_table"] = daily
 
     # Determine reference end date
@@ -124,8 +115,12 @@ def compute_rpe_metrics(df_raw: pd.DataFrame, flt: RPEFilters) -> dict:
     res["monotonia_semana"] = float(semana_mean / semana_std) if semana_std and semana_std > 0 else None
     res["variabilidad_semana"] = float(semana_std) if semana_std is not None else None
 
+    # st.dataframe(daily)
+    # st.dataframe(daily_week)
+
     # Day metric (exact end_day)
     day_row = daily[daily["fecha_sesion"] == end_day]
+    #st.dataframe(day_row)
     res["ua_total_dia"] = float(day_row["ua_total"].iloc[0]) if not day_row.empty else 0.0
 
     # Month metrics (calendar month of end_day)
@@ -155,5 +150,5 @@ def compute_rpe_metrics(df_raw: pd.DataFrame, flt: RPEFilters) -> dict:
     # ACWR (acute:chronic) using mean-per-day normalization
     # Avoid divide-by-zero
     res["acwr"] = float((fatiga_aguda / 7.0) / fatiga_cronica) if fatiga_cronica else None
-
+    res["minutos_sesion"] = float(day_row["minutos_total"].iloc[0]) if not day_row.empty else 0.0
     return res
