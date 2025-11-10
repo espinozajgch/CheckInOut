@@ -3,8 +3,11 @@ import src.config as config
 import numpy as np
 config.init_config()
 
-from src.auth import init_app_state, login_view, menu
+from src.auth_system.auth_core import init_app_state, validate_login
+from src.auth_system.auth_ui import login_view, menu
+
 init_app_state()
+validate_login()
 
 from src.ui_components import selection_header
 from src.reportes.ui_individual import metricas, graficos_individuales, calcular_semaforo_riesgo

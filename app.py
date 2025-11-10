@@ -1,10 +1,11 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-from datetime import date, timedelta
+
+from src.auth_system.auth_core import init_app_state, validate_login
+from src.auth_system.auth_ui import login_view, menu
 
 from src.db_records import get_records_wellness_db
-from src.auth import init_app_state, login_view, menu, validate_login
+
 from src.util import clean_df
 from src.ui_app import (
     get_default_period,
@@ -25,6 +26,7 @@ config.init_config()
 # ============================================================
 init_app_state()
 validate_login()
+
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()

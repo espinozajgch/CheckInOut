@@ -4,12 +4,16 @@ import src.config as config
 
 config.init_config()
 
-from src.auth import init_app_state, login_view, menu
+from src.auth_system.auth_core import init_app_state, validate_login
+from src.auth_system.auth_ui import login_view, menu
+
+#from src.auth import init_app_state, login_view, menu
 from src.checkin_ui import checkin_form
 from src.db_records import load_jugadoras_db, load_competiciones_db, upsert_wellness_record_db, get_record_for_player_day_turno_db
 from src.check_out import checkout_form
 
 init_app_state()
+validate_login()
 
 from src.ui_components import preview_record, selection_header
 from src.schema import new_base_record
