@@ -1,12 +1,12 @@
 import streamlit as st
 import jwt, datetime, bcrypt
 from st_cookies_manager import EncryptedCookieManager
-from src.auth_system import config  # importa los parámetros
+from src.auth_system import auth_config 
 
 # --- Instancia global de cookies (única en cada app) ---
 cookies = EncryptedCookieManager(
-    password=config.COOKIE_SECRET,
-    prefix=config.COOKIE_NAME
+    password=auth_config.COOKIE_SECRET,
+    prefix=auth_config.COOKIE_NAME
 )
 if not cookies.ready():
     st.stop()
