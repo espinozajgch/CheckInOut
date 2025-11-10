@@ -1,6 +1,6 @@
 import streamlit as st
 from src.db_login import load_user_from_db
-from src.auth_system.auth_core import logout, validate_password
+from src.auth_system.auth_core import logout, validate_access
 from src.util import centered_text
 
 def login_view() -> None:
@@ -27,7 +27,7 @@ def login_view() -> None:
             if not user_data:
                 st.error("Usuario no encontrado o inactivo.")
                 st.stop()
-            validate_password(password, user_data)
+            validate_access(password, user_data)
 
 def menu():
     with st.sidebar:
