@@ -19,7 +19,6 @@ def normalize_text(s):
     s = unicodedata.normalize("NFKC", s)  # Normaliza forma Unicode
     return s
 
-
 def get_photo(url):
     try:
         response = requests.get(url)
@@ -29,6 +28,9 @@ def get_photo(url):
 
     return response
 
+def centered_text(text : str):
+        st.markdown(f"<h3 style='text-align: center;'>{text}</span></h3>",unsafe_allow_html=True)
+        
 def clean_df(records):
     columnas_excluir = [
         "wellness_score"

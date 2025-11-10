@@ -1,6 +1,7 @@
 import streamlit as st
 from src.db_login import load_user_from_db
 from src.auth_system.auth_core import logout, validate_password
+from src.util import centered_text
 
 def login_view() -> None:
     """Renderiza el formulario de inicio de sesión."""
@@ -13,6 +14,7 @@ def login_view() -> None:
             </style>
         """, unsafe_allow_html=True)
 
+        centered_text("Wellness & RPE")
         st.image("assets/images/banner.png")
 
         with st.form("login_form", clear_on_submit=False):
