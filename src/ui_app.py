@@ -234,7 +234,7 @@ def mostrar_resumen_tecnico(wellness_prom: float, rpe_prom: float, ua_total: flo
         f":material/description: **Resumen técnico:** El grupo muestra un estado de bienestar **{estado_bienestar}** "
         f"({wellness_prom}/25) con un esfuerzo percibido **{nivel_rpe}** (RPE {rpe_prom}). "
         f"La carga interna total es de **{ua_total} UA** y actualmente hay **{estado_alertas}**, "
-        f"debido a que el **(promedio de bienestar x 5) < 15 puntos** (escala 25)**, "
+        f"debido a que el **(promedio de bienestar x 5) < 15 puntos** (escala 25), "
         f"indicando **fatiga, sobrecarga o molestias significativas** que aumentan el riesgo de lesión o bajo rendimiento."
     )
 
@@ -298,11 +298,14 @@ def show_interpretation(wellness_prom, rpe_prom, ua_total, alertas_count, alerta
 # 📋 TABLA RESUMEN DEL PERIODO
 # ============================================================
 
-def generar_resumen_periodo(df_periodo: pd.DataFrame):
+def generar_resumen_periodo(df: pd.DataFrame):
     """
     Tabla resumen del periodo (sin separar por tipo),
     manteniendo cálculo de riesgo y colores de wellness.
     """
+
+    # --- Asegurar tipos numéricos ---
+    df_periodo = df.copy()
 
     if df_periodo.empty:
         st.info("No hay registros disponibles en este periodo.")

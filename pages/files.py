@@ -1,8 +1,12 @@
 import streamlit as st
 import src.config as config
 config.init_config()
+
 from src.ui_components import selection_header
-from src.auth import init_app_state, login_view, menu, validate_login
+
+from src.auth_system.auth_core import init_app_state, validate_login
+from src.auth_system.auth_ui import login_view, menu
+
 from src.db_records import delete_wellness, load_jugadoras_db, load_competiciones_db, get_records_wellness_db
 
 init_app_state()

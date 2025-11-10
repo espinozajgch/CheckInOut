@@ -8,12 +8,14 @@ import pandas as pd
 import src.config as config
 config.init_config()
 
-from src.auth import init_app_state, login_view, menu, validate_login
+from src.auth_system.auth_core import init_app_state, validate_login
+from src.auth_system.auth_ui import login_view, menu
+
+#from src.auth import init_app_state, login_view, menu, validate_login
 from src.io_files import load_jugadoras
 from src.synthetic import generate_synthetic_full
 
 init_app_state()
-
 validate_login()
 
 # Authentication gate
