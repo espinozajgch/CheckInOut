@@ -36,24 +36,6 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-## Credenciales
-
-- Por defecto: usuario `admin`, contraseña `admin`.
-- Puedes configurar variables de entorno en un `.env` (opcional):
-
-```
-TRAINER_USER=mi_usuario
-TRAINER_PASS=mi_password
-```
-
-## Archivos de datos
-
-- Si faltan `data/jugadoras.xlsx` o `data/partes_cuerpo.xlsx`, la app te permitirá descargar plantillas para rellenar.
-- Formatos:
-  - `jugadoras.xlsx`: columnas `id_jugadora`, `nombre_jugadora`.
-  - `partes_cuerpo.xlsx`: columna `parte`.
-- Los registros se guardan en `data/registros.jsonl` con una línea JSON por registro.
-
 ### Estructura de cada registro (JSONL)
 
 ```json
