@@ -29,15 +29,24 @@ def init_app_state():
 
 # --- JWT ---
 def create_jwt_token(username, rol):
-    exp_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=config.JWT_EXP_SECONDS)
+    exp_time = datetime.datetime.utcnow() + datetime.timedelta(seconds=auth_config.JWT_EXP_SECONDS)
     payload = {"user": username, "rol": rol, "exp": exp_time, "iat": datetime.datetime.utcnow()}
-    token = jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
+    token = jwt.encode(payload, auth_config.JWT_SECRET, algorithm=auth_config.JWT_ALGORITHM)
     return _ensure_str(token)
 
 def decode_jwt_token(token):
     try:
-        return jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
-    except (jwt.ExpiredSignatureError, jwt.InvalidTokenError):
+        return jwt.decode(token, auth_config.JWT_SECRET, algorithms=[auth_config.JWT_ALGORITHM])
+    except jwt.ExpiredSignatureError as e:
+        print(f"❌ Token expirado: {e}")
+        return None
+
+    except jwt.InvalidTokenError as e:
+        print(f"❌ Token inválido: {e}")
+        return None
+
+    except Exception as e:
+        print(f"⚠️ Error inesperado al decodificar JWT: {e}")
         return None
 
 # --- Login helpers ---
@@ -86,6 +95,7 @@ def get_current_user():
     return payload["user"]
 
 def logout():
+    #print("logout")
     cookie_key = st.session_state["auth"].get("cookie_key")
     if cookie_key and cookie_key in cookies:
         cookies[cookie_key] = ""
@@ -96,9 +106,21 @@ def logout():
 def validate_login():
     return bool(get_current_user())
 
-def validate_password(password, user):
+def validate_access(password, user):
     """Valida la contraseña y genera token + cookie única por usuario."""
     if bcrypt.checkpw(password.encode("utf-8"), user["password_hash"].encode("utf-8")):
+
+        # ---- VALIDAR PERMISO DE ACCESO A LA APP ----
+        permisos = user.get("permissions", "")
+
+        # Normalizamos a lista por si viene como string concatenado
+        permisos_list = [p.strip() for p in permisos.split(",")] if isinstance(permisos, str) else []
+
+        if auth_config.APP_NAME not in permisos_list:
+            print(f"Acceso denegado: el usuario no tiene permiso para usar la aplicación. {auth_config.APP_NAME}")
+            st.error(f":material/block: Acceso denegado. No tienes permiso para usar esta aplicación.")
+            st.stop()
+
         token = create_jwt_token(user["email"], user["role_name"])
         token = _ensure_str(token)
 

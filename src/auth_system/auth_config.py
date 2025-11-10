@@ -13,3 +13,5 @@ JWT_EXP_SECONDS = int(st.secrets["auth"]["token_expiration"])  # tiempo de expir
 COOKIE_SECRET = st.secrets["auth"]["cookie_secret"]
 COOKIE_NAME = st.secrets["auth"]["cookie_name"]
 COOKIE_EXP_DAYS = int(st.secrets["auth"]["cookie_expiration_days"])
+
+APP_NAME = st.secrets["auth"]["app_name"]
