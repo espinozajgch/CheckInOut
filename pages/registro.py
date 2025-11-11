@@ -58,7 +58,7 @@ if existing_today:
 is_valid = False
 
 if tipo == "Check-in":
-    record, is_valid, validation_msg = checkin_form(record, jugadora["sexo"])
+    record, is_valid, validation_msg = checkin_form(record, jugadora["genero"])
 else:
     if not existing_today:
         st.error("No existe un registro de check-in previo para esta jugadora, fecha y turno.")

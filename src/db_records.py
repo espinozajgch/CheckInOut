@@ -447,8 +447,8 @@ def get_records_plus_players_db(plantel: str = None) -> pd.DataFrame:
             l.fecha_hora_registro,
             l.usuario
         FROM lesiones l
-        LEFT JOIN futbolistas f ON l.id_jugadora = f.id
-        LEFT JOIN informacion_futbolistas i ON l.id_jugadora = i.id_futbolista
+        LEFT JOIN futbolistas f ON l.id_jugadora = f.identificacion
+        LEFT JOIN informacion_futbolistas i ON l.id_jugadora = i.identificacion
         LEFT JOIN lugares lu ON l.lugar_id = lu.id
         LEFT JOIN mecanismos m ON l.mecanismo_id = m.id
         LEFT JOIN tipo_lesion t ON l.tipo_lesion_id = t.id
@@ -524,7 +524,7 @@ def load_jugadoras_db() -> pd.DataFrame | None:
             f.apellido,
             f.competicion AS plantel,
             f.fecha_nacimiento,
-            f.sexo,
+            f.genero,
             i.posicion,
             i.dorsal,
             i.nacionalidad,
@@ -533,7 +533,7 @@ def load_jugadoras_db() -> pd.DataFrame | None:
             i.foto_url
         FROM futbolistas f
         LEFT JOIN informacion_futbolistas i 
-            ON f.id = i.id_futbolista
+            ON f.identificacion = i.identificacion
         ORDER BY f.nombre ASC;
         """
 
@@ -554,7 +554,7 @@ def load_jugadoras_db() -> pd.DataFrame | None:
         orden = [
             "id_jugadora", "nombre_jugadora", "nombre", "apellido", "posicion", "plantel",
             "dorsal", "nacionalidad", "altura", "peso", "fecha_nacimiento",
-            "sexo", "foto_url"
+            "genero", "foto_url"
         ]
         df = df[[col for col in orden if col in df.columns]]
         df["posicion"] = df["posicion"].map(MAP_POSICIONES).fillna(df["posicion"])
