@@ -7,15 +7,14 @@ config.init_config()
 from src.auth_system.auth_core import init_app_state, validate_login
 from src.auth_system.auth_ui import login_view, menu
 
-#from src.auth import init_app_state, login_view, menu
 from src.checkin_ui import checkin_form
-from src.db_records import load_jugadoras_db, load_competiciones_db, upsert_wellness_record_db, get_record_for_player_day_turno_db
+from src.db_records import load_jugadoras_db, load_competiciones_db, upsert_wellness_record_db, get_record_for_player_day_turno_db, get_records_wellness_db
 from src.check_out import checkout_form
 
 init_app_state()
 validate_login()
 
-from src.ui_components import preview_record, selection_header
+from src.ui_components import preview_record, selection_header_registro
 from src.schema import new_base_record
 
 # Authentication gate
@@ -28,10 +27,11 @@ st.header('Registro :red[:material/check_in_out:] ', divider=True)
 menu()
 
 # Load reference data
+df = get_records_wellness_db()
 jug_df = load_jugadoras_db()
 comp_df = load_competiciones_db()
 
-jugadora, tipo, turno = selection_header(jug_df, comp_df)
+jugadora, tipo, turno = selection_header_registro(jug_df, comp_df, df)
 
 if not jugadora:
     st.info("Selecciona una jugadora para continuar.")
