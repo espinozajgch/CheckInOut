@@ -38,7 +38,7 @@ menu()
 #st.session_state.clear()
 
 # ============================================================
-# CARGA DE DATOS
+# 📦 CARGA DE DATOS
 # ============================================================
 df = get_records_wellness_db()
 
@@ -51,25 +51,15 @@ jug_df = load_jugadoras_db()
 jug_df = jug_df[jug_df["plantel"] == "1FF"]
 
 # ============================================================
-# INTERFAZ PRINCIPAL
+# 🧭 INTERFAZ PRINCIPAL
 # ============================================================
-if "periodo_actual" not in st.session_state:
-    st.session_state["periodo_actual"] = get_default_period(df)
 
-opciones_periodo = ["Hoy", "Último día", "Semana", "Mes"]
-
+default_period = get_default_period(df)
 periodo = st.radio(
     "Periodo:",
-    opciones_periodo,
-    horizontal=True,
-    index=opciones_periodo.index(st.session_state["periodo_actual"])
-)
-
-if periodo != st.session_state["periodo_actual"]:
-    st.session_state["periodo_actual"] = periodo
-
-# Aplicar filtro con la opción actual
-df_periodo, articulo = filter_df_by_period(df, st.session_state["periodo_actual"])
+    ["Hoy", "Último día", "Semana", "Mes"],horizontal=True,
+    index=["Hoy", "Último día", "Semana", "Mes"].index(default_period))
+df_periodo, articulo = filter_df_by_period(df, periodo)
 
 # Cálculos principales
 wellness_prom, chart_wellness, delta_wellness = calc_metric_block(df_periodo, periodo, "wellness_score", "mean")
