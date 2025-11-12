@@ -197,12 +197,12 @@ def plot_acwr(df: pd.DataFrame):
     st.plotly_chart(fig, use_container_width=False)
 
 def tabla_resumen(df_filtrado):
-    df_filtrado["jugadora"] = (
-        df_filtrado["nombre"].fillna("") + " " + df_filtrado["apellido"].fillna("")
-    ).str.strip()
+    # df_filtrado["jugadora"] = (
+    #     df_filtrado["nombre"].fillna("") + " " + df_filtrado["apellido"].fillna("")
+    # ).str.strip()
 
     resumen = (
-        df_filtrado.groupby(["nombre", "apellido"], as_index=False)
+        df_filtrado.groupby(["nombre_jugadora"], as_index=False)
         .agg(
             carga_total=("ua", "sum"),
             rpe_promedio=("rpe", "mean"),
@@ -219,7 +219,7 @@ def tabla_resumen(df_filtrado):
     st.dataframe(
         resumen.rename(
             columns={
-                "jugadora": "Jugadora",
+                "nombre_jugadora": "Jugadora",
                 "carga_total": "Carga total (UA)",
                 "rpe_promedio": "RPE promedio",
                 "sesiones": "Nº sesiones",

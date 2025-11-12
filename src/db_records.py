@@ -35,6 +35,7 @@ def get_records_wellness_db(as_df: bool = True):
                 w.id_jugadora,
                 f.nombre,
                 f.apellido,
+                f.competicion as plantel,
                 w.fecha_sesion,
                 w.tipo,
                 w.turno,
@@ -55,11 +56,12 @@ def get_records_wellness_db(as_df: bool = True):
                 w.fecha_hora_registro,
                 w.usuario
             FROM wellness AS w
-            LEFT JOIN futbolistas f ON w.id_jugadora = f.id
+            LEFT JOIN futbolistas f ON w.id_jugadora = f.identificacion
             LEFT JOIN estimulos_campo AS ec 
                 ON w.id_tipo_estimulo = ec.id
             LEFT JOIN estimulos_readaptacion AS er 
                 ON w.id_tipo_readaptacion = er.id
+            WHERE f.genero = 'F'
             ORDER BY w.fecha_hora_registro DESC;
         """
 
@@ -97,6 +99,12 @@ def get_records_wellness_db(as_df: bool = True):
             df = df[df["usuario"]=="developer"]
         else:
             df = df[df["usuario"]!="developer"]
+
+        # Crear columna nombre_jugadora y colocarla en la segunda posición
+        nombre_jugadora = (df["nombre"].fillna("") + " " + df["apellido"].fillna("")).str.strip()
+        df.insert(2, "nombre_jugadora", nombre_jugadora)
+
+        df = df.drop(columns=["nombre", "apellido"], errors="ignore")
 
         # print(df["fecha_sesion"].head())
         # print(df["fecha_sesion"].dtype)
@@ -456,6 +464,7 @@ def get_records_plus_players_db(plantel: str = None) -> pd.DataFrame:
         LEFT JOIN segmentos_corporales s ON l.segmento_id = s.id
         LEFT JOIN zonas_segmento z ON l.zona_cuerpo_id = z.id
         LEFT JOIN zonas_anatomicas za ON l.zona_especifica_id = za.id
+        WHERE f.genero = 'F'
         ORDER BY l.fecha_hora_registro DESC;
         """
 
@@ -473,6 +482,8 @@ def get_records_plus_players_db(plantel: str = None) -> pd.DataFrame:
         df["nombre_jugadora"] = (
             df["nombre"].fillna("") + " " + df["apellido"].fillna("")
         ).str.strip()
+
+        df = df.drop(columns=["nombre", "apellido"], errors="ignore")
 
         # Reordenar columnas
         columnas = df.columns.tolist()
@@ -519,7 +530,8 @@ def load_jugadoras_db() -> pd.DataFrame | None:
     try:
         query = """
         SELECT 
-            f.id AS id_jugadora,
+            f.id,
+            f.identificacion AS id_jugadora,
             f.nombre,
             f.apellido,
             f.competicion AS plantel,
@@ -534,6 +546,7 @@ def load_jugadoras_db() -> pd.DataFrame | None:
         FROM futbolistas f
         LEFT JOIN informacion_futbolistas i 
             ON f.identificacion = i.identificacion
+        WHERE f.genero = 'F'
         ORDER BY f.nombre ASC;
         """
 
@@ -552,14 +565,14 @@ def load_jugadoras_db() -> pd.DataFrame | None:
 
         # Reordenar columnas
         orden = [
-            "id_jugadora", "nombre_jugadora", "nombre", "apellido", "posicion", "plantel",
+            "id", "id_jugadora", "nombre_jugadora", "nombre", "apellido", "posicion", "plantel",
             "dorsal", "nacionalidad", "altura", "peso", "fecha_nacimiento",
             "genero", "foto_url"
         ]
         df = df[[col for col in orden if col in df.columns]]
         df["posicion"] = df["posicion"].map(MAP_POSICIONES).fillna(df["posicion"])
 
-        #st.dataframe(df)
+        df = df.drop(columns=["nombre", "apellido"], errors="ignore")
 
         return df
 
