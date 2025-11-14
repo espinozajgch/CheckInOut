@@ -2,6 +2,8 @@ import pandas as pd
 import streamlit as st
 import datetime
 from src.util import get_date_range_input
+from src.i18n.i18n import t
+from src.schema import OPCIONES_TURNO
 
 def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd.DataFrame = None, modo: str = "registro") -> pd.DataFrame:
     """
@@ -15,7 +17,7 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
     with col1:
         competiciones_options = comp_df.to_dict("records")
         competicion = st.selectbox(
-            "Plantel",
+            t("Plantel"),
             options=competiciones_options,
             format_func=lambda x: f'{x["nombre"]} ({x["codigo"]})',
             index=3,
@@ -32,11 +34,11 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
             jugadoras_options = jug_df_filtrado.to_dict("records")
 
             jugadora_opt = st.selectbox(
-                "Jugadora",
+                t("Jugadora"),
                 options=jugadoras_options,
                 format_func=lambda x: x["nombre_jugadora"] if isinstance(x, dict) else "",
                 index=None,
-                placeholder="Seleccione una Jugadora",
+                placeholder=t("Seleccione una Jugadora"),
                 disabled = disabled_jugadores
             )
 
@@ -46,11 +48,12 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
 
     # --- Selección de turno ---
     with col3:
-        turno = st.selectbox(
-            "Turno",
-            options=["Turno 1", "Turno 2", "Turno 3"],
+        turno_traducido = st.selectbox(
+            t("Turno"),
+            list(OPCIONES_TURNO.values()),
             index=0
         )
+        turno = next(k for k, v in OPCIONES_TURNO.items() if v == turno_traducido)
         #st.session_state.get("turno_idx", 0)
         #st.session_state["turno_idx"] = ["Turno 1", "Turno 2", "Turno 3"].index(turno)
 
@@ -59,7 +62,7 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
     with col4:
         if modo == "registro":
             tipo = st.radio(
-                "Tipo de registro",
+                t("Tipo de registro"),
                 options=["Check-in", "Check-out"], horizontal=True,
                 index=0 
             )
@@ -73,7 +76,7 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
             start_default = hace_15_dias 
             end_default = hoy
 
-            start, end = get_date_range_input("Rango de fechas", start_default=start_default, end_default=end_default)
+            start, end = get_date_range_input(t("Rango de fechas"), start_default=start_default, end_default=end_default)
 
             #default_rango = st.session_state.get("fecha_rango", (hace_15_dias, hoy))
             #start, end = st.date_input( "Rango de fechas", value=(start_default, end_default), max_value=hoy )
@@ -125,18 +128,23 @@ def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records
     col_tipo, col_turno, col_plantel, col_jugadora = st.columns([1.5, 1, 2, 2])
 
     with col_tipo:
-        tipo = st.radio("Tipo de registro", options=["Check-in", "Check-out"], horizontal=True, index=0)
+        tipo = st.radio(t("Tipo de registro"), options=["Check-in", "Check-out"], horizontal=True, index=0)
     with col_turno:
-        turno = st.selectbox("Turno", options=["Turno 1", "Turno 2", "Turno 3"],index=0)
+        turno_traducido = st.selectbox(
+            t("Turno"),
+            list(OPCIONES_TURNO.values()),
+            index=0
+        )
+        turno = next(k for k, v in OPCIONES_TURNO.items() if v == turno_traducido)
 
     with col_plantel:
         comp_options = comp_df.to_dict("records")
         comp_select = st.selectbox(
-            "Plantel",
+            t("Plantel"),
             options=comp_options,
             format_func=lambda x: x["nombre"] if isinstance(x, dict) else "",
             index=3,
-            placeholder="Seleccione un plantel",
+            placeholder=t("Seleccione un plantel"),
         )
         codigo_comp = comp_select["codigo"]
 
@@ -166,11 +174,11 @@ def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records
         jugadoras_options = jug_df_filtrado.to_dict("records")
 
         jugadora_opt = st.selectbox(
-            "Jugadora",
+            t("Jugadora"),
             options=jugadoras_options,
             format_func=lambda x: x["nombre_jugadora"] if isinstance(x, dict) else "",
             index=None,
-            placeholder="Seleccione una jugadora disponible",
+            placeholder=t("Seleccione una Jugadora"),
         )
         
     return jugadora_opt, tipo, turno

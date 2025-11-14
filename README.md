@@ -89,6 +89,35 @@ Principales características
 - Las sesiones son independientes entre usuarios y navegadores, incluso en Streamlit Cloud gratuito.
 - El cierre de sesión (logout()) solo afecta al usuario actual, sin interferir en otras sesiones activas.
 
+# 🌐 i18n (Internacionalización) — Modo Texto Original
+
+Este módulo permite que tu app de Streamlit sea multilenguaje **sin modificar los textos originales**.
+
+## 📁 Estructura
+```
+src/i18n/
+  ├── i18n.py
+  └── lang/
+      ├── es.json
+      ├── en.json
+      └── pt.json
+```
+
+## 🚀 Uso
+```python
+from src.i18n.i18n import t, language_selector
+
+language_selector()  # Selector en la barra lateral
+
+st.header(t("Resumen de Wellness"))
+st.button(t("Guardar registro"))
+st.info(t("No hay registros disponibles en este periodo."))
+```
+
+- Usa directamente tus textos originales como clave de traducción.
+- Si una clave no existe, se muestra el texto original (en español).
+
+
 ## Notas
 
 - Vista de una sola página, previsualización antes de guardar y botón deshabilitado hasta cumplir validaciones.

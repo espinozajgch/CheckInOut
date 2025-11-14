@@ -4,7 +4,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import altair as alt
-
+from src.i18n.i18n import t
 from src.styles import get_color_wellness, BRAND_PRIMARY, BRAND_TEXT
 
 # 1️⃣ RPE y UA -------------------------------------------------------
@@ -18,11 +18,11 @@ def grafico_rpe_ua(df: pd.DataFrame):
             color="rpe",
             color_continuous_scale="RdYlGn_r",
             labels={"ua": "Carga Interna (UA)", "fecha_sesion": "Fecha", "rpe": "RPE"},
-            title="Evolución de RPE (color) y Carga Interna (barras)"
+            title=t("Evolución de RPE (color) y Carga Interna (barras)")
         )
         st.plotly_chart(fig)
     else:
-        st.info("No hay datos de RPE o UA para graficar.")
+        st.info(t("No hay datos de RPE o UA para graficar."))
 
 
 # 2️⃣ Duración vs RPE ------------------------------------------------
@@ -45,14 +45,14 @@ def grafico_duracion_rpe(df: pd.DataFrame):
             line=dict(color="#E64A19", width=3)
         ))
         fig.update_layout(
-            title="Relación entre duración y esfuerzo percibido",
+            title=t("Relación entre duración y esfuerzo percibido"),
             yaxis=dict(title="Minutos de sesión"),
             yaxis2=dict(title="RPE", overlaying="y", side="right"),
             legend_title_text="Variables"
         )
         st.plotly_chart(fig)
     else:
-        st.info("No hay datos de minutos o RPE para graficar.")
+        st.info(t("No hay datos de minutos o RPE para graficar."))
 
 
 # 3️⃣ ACWR -----------------------------------------------------------
@@ -60,7 +60,7 @@ def grafico_acwr(df: pd.DataFrame):
     #st.markdown("#### Evolución del índice ACWR (Relación Agudo:Crónico)")
 
     if "ua" not in df.columns:
-        st.info("No hay datos de carga interna (UA) para calcular ACWR.")
+        st.info(t("No hay datos de carga interna (UA) para calcular ACWR."))
         return
 
     df = df.copy()
@@ -71,7 +71,7 @@ def grafico_acwr(df: pd.DataFrame):
     df = df.dropna(subset=["acwr"])
 
     if df.empty:
-        st.info("No hay suficientes datos para calcular ACWR.")
+        st.info(t("No hay suficientes datos para calcular ACWR."))
         return
 
     def _zone(v: float) -> str:
@@ -119,7 +119,7 @@ def grafico_acwr(df: pd.DataFrame):
         {"y": 1.8, "text": "Peligro"}
     ])).mark_text(align="left", dx=5, fontSize=11, color="#444").encode(y="y:Q", text="text:N")
 
-    chart = alt.layer(bg, rules, line, pts, labels).properties(height=320, width="container", title="Evolución del índice ACWR (Relación Agudo:Crónico)")
+    chart = alt.layer(bg, rules, line, pts, labels).properties(height=320, width="container", title=t("Evolución del índice ACWR (Relación Agudo:Crónico)"))
     st.altair_chart(chart)
 
 
@@ -131,11 +131,11 @@ def grafico_wellness(df: pd.DataFrame):
         fig = px.line(
             df, x="fecha_sesion", y=cols, markers=True,
             labels={"value": "Nivel (1-5)", "fecha_sesion": "Fecha", "variable": "Parámetro"},
-            title="Evolución de los indicadores de bienestar"
+            title=t("Evolución de los indicadores de bienestar")
         )
         st.plotly_chart(fig)
     else:
-        st.info("No hay datos de bienestar para graficar.")
+        st.info(t("No hay datos de bienestar para graficar."))
 
 
 # 5️⃣ Riesgo de lesión -----------------------------------------------
@@ -145,10 +145,10 @@ def grafico_riesgo_lesion(df: pd.DataFrame):
     con la fatiga subjetiva, mostrando zonas de carga de fondo.
     """
 
-    st.markdown("#### 🧠 Evolución del riesgo de lesión (ACWR + Fatiga)")
+    st.markdown(t("#### Evolución del riesgo de lesión (ACWR + Fatiga)"))
 
     if "ua" not in df.columns:
-        st.info("No hay datos suficientes para calcular el riesgo.")
+        st.info(t("No hay datos suficientes para calcular el riesgo."))
         return
 
     df = df.copy()
@@ -183,7 +183,7 @@ def grafico_riesgo_lesion(df: pd.DataFrame):
         y="acwr",
         color="riesgo_lesion",
         color_discrete_map=color_map,
-        title="Evolución del riesgo de lesión (ACWR + Fatiga)",
+        title=t("Evolución del riesgo de lesión (ACWR + Fatiga)"),
         labels={
             "acwr": "Relación Agudo:Crónico (ACWR)",
             "fecha_sesion": "Fecha",
@@ -205,7 +205,7 @@ def grafico_riesgo_lesion(df: pd.DataFrame):
     # --- Estética ---
     fig.update_layout(
         yaxis=dict(range=[0.7, max(2.0, df["acwr"].max() + 0.2)]),
-        legend_title_text="Nivel de riesgo",
+        legend_title_text=t("Nivel de riesgo"),
         template="simple_white"
     )
 
@@ -215,8 +215,8 @@ def grafico_riesgo_lesion(df: pd.DataFrame):
     st.markdown(
         """
         **Interpretación del gráfico:**
-        - 🟩 **Banda verde (0.8–1.3):** zona óptima o “sweet spot”.  
-        - 🟧 **Banda naranja (1.3–1.5):** carga elevada, riesgo moderado.  
+        - 🟩 **Banda verde (0.8-1.3):** zona óptima o “sweet spot”.  
+        - 🟧 **Banda naranja (1.3-1.5):** carga elevada, riesgo moderado.  
         - 🟥 **Banda roja (>1.5):** sobrecarga, riesgo alto de lesión.  
         - 🟦 **Banda azul (<0.8):** subcarga o pérdida de forma.  
         - El **color del punto** depende del riesgo combinado entre **ACWR y fatiga**:
@@ -232,7 +232,7 @@ def tabla_wellness_individual(df: pd.DataFrame):
     aplicando la escala de interpretación Wellness global (normal e invertida).
     """
 
-    st.markdown("**Wellness por sesión**")
+    st.markdown(t("**Wellness por sesión**"))
 
     # --- Verificar columnas necesarias ---
     cols_min = ["fecha_sesion", "periodizacion_tactica", "energia", "recuperacion", "sueno", "stress", "dolor"]
@@ -241,23 +241,23 @@ def tabla_wellness_individual(df: pd.DataFrame):
         return
 
     # --- Crear tabla base ---
-    t = df.copy()
-    t["fecha_sesion"] = pd.to_datetime(t["fecha_sesion"], errors="coerce")
-    t = t.sort_values("fecha_sesion", ascending=False).reset_index(drop=True)
+    t_df = df.copy()
+    t_df["fecha_sesion"] = pd.to_datetime(t_df["fecha_sesion"], errors="coerce")
+    t_df = t_df.sort_values("fecha_sesion", ascending=False).reset_index(drop=True)
 
     # Día de la semana en español
-    t["Día Semana"] = t["fecha_sesion"].dt.day_name(locale="es_ES")
-    t["fecha_sesion"] = t["fecha_sesion"].dt.date
+    t_df["Día Semana"] = t_df["fecha_sesion"].dt.day_name(locale="es_ES")
+    t_df["fecha_sesion"] = t_df["fecha_sesion"].dt.date
 
     # Tipo de estímulo y readaptación
-    t["Tipo de estímulo"] = t.get("tipo_estimulo", "").fillna("").astype(str)
-    t["Tipo de readaptación"] = t.get("tipo_readaptacion", "").fillna("").astype(str)
+    t_df["Tipo de estímulo"] = t_df.get("tipo_estimulo", "").fillna("").astype(str)
+    t_df["Tipo de readaptación"] = t_df.get("tipo_readaptacion", "").fillna("").astype(str)
 
     # Calcular Promedio Wellness
-    t["Promedio Wellness"] = t[["recuperacion", "energia", "sueno", "stress", "dolor"]].mean(axis=1)
+    t_df["Promedio Wellness"] = t_df[["recuperacion", "energia", "sueno", "stress", "dolor"]].mean(axis=1)
 
     # Selección y renombre de columnas
-    t_show = t[[
+    t_show = t_df[[
         "fecha_sesion", "Día Semana", "periodizacion_tactica",
         "Tipo de estímulo", "Tipo de readaptación",
         "recuperacion", "energia", "sueno", "stress", "dolor", "Promedio Wellness"
@@ -296,10 +296,10 @@ def tabla_wellness_individual(df: pd.DataFrame):
         .format(precision=2)
     )
 
-    st.dataframe(styled)
+    st.dataframe(styled)        
 
+    caption_green = t("**Valores altos indican mejor bienestar** en Recuperación, Energía y Sueño.")
+    caption_red = t("**Valores bajos indican mejor bienestar** en Estrés y Dolor (escala invertida).")
     # --- Explicación ---
-    st.caption(
-        "🟩 **Valores altos indican mejor bienestar** en Recuperación, Energía y Sueño.  \n"
-        "🟥 **Valores bajos indican mejor bienestar** en Estrés y Dolor (escala invertida)."
-    )
+    st.caption(f"🟩 {caption_green}")
+    st.caption(f"🟥 {caption_red}")

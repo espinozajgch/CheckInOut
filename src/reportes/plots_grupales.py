@@ -2,8 +2,8 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import src.styles as styles  # 🎨 integración con paletas globales
-
+import src.styles as styles
+from src.i18n.i18n import t
 
 # ============================================================
 # 🧭 Función auxiliar de fecha
@@ -51,20 +51,27 @@ def plot_carga_semanal(df: pd.DataFrame):
         x="rango_semana",
         y="carga_total",
         markers=True,
-        title="Carga total semanal (UA)",
+        title=t("Carga total semanal (UA)"),
         color_discrete_sequence=[styles.BRAND_PRIMARY],
     )
     fig.update_traces(line=dict(width=3))
     fig.update_layout(
-        xaxis_title="Semana",
-        yaxis_title="Carga (UA)",
+        xaxis_title=t("Semana"),
+        yaxis_title=t("Carga (UA)"),
         plot_bgcolor="white",
         font_color=styles.BRAND_TEXT,
     )
     st.plotly_chart(fig, use_container_width=False)
 
+    columnas_visibles = [
+        "rango_semana", 
+        "carga_total", 
+        "carga_media", 
+        "rpe_prom"
+    ]
+
     st.dataframe(
-        weekly.rename(
+        weekly[columnas_visibles].rename(
             columns={
                 "rango_semana": "Semana",
                 "carga_total": "Carga total (UA)",
@@ -92,7 +99,7 @@ def plot_rpe_promedio(df: pd.DataFrame):
         daily,
         x="fecha_sesion",
         y="rpe",
-        title="RPE promedio diario",
+        title=t("RPE promedio diario"),
         color="rpe",
         color_continuous_scale=[
             styles.SEMAFORO["verde_oscuro"],
@@ -101,8 +108,8 @@ def plot_rpe_promedio(df: pd.DataFrame):
         ],
     )
     fig.update_layout(
-        xaxis_title="Fecha",
-        yaxis_title="RPE promedio",
+        xaxis_title=t("Fecha"),
+        yaxis_title=t("RPE promedio"),
         plot_bgcolor="white",
         font_color=styles.BRAND_TEXT,
         coloraxis_colorbar=dict(title="RPE"),
@@ -134,15 +141,15 @@ def plot_monotonia_fatiga(df: pd.DataFrame):
         x="semana",
         y=["monotonia", "fatiga_aguda"],
         markers=True,
-        title=":material/stacked_line_chart: Monotonía y Fatiga Aguda",
+        title=t(":material/stacked_line_chart: Monotonía y Fatiga Aguda"),
         color_discrete_map={
             "monotonia": styles.SEMAFORO["naranja"],
             "fatiga_aguda": styles.SEMAFORO["rojo"],
         },
     )
     fig.update_layout(
-        xaxis_title="Semana",
-        yaxis_title="Valor del índice",
+        xaxis_title=t("Semana"),
+        yaxis_title=t("Valor del índice"),
         plot_bgcolor="white",
         font_color=styles.BRAND_TEXT,
     )
@@ -170,7 +177,7 @@ def plot_acwr(df: pd.DataFrame):
         x="semana",
         y="acwr",
         markers=True,
-        title=":material/analytics: Relación Carga Aguda : Crónica (ACWR)",
+        title=t(":material/analytics: Relación Carga Aguda : Crónica (ACWR)"),
         color_discrete_sequence=[styles.SEMAFORO["verde_oscuro"]],
     )
 
@@ -189,8 +196,8 @@ def plot_acwr(df: pd.DataFrame):
     )
 
     fig.update_layout(
-        xaxis_title="Semana",
-        yaxis_title="ACWR",
+        xaxis_title=t("Semana"),
+        yaxis_title=t("ACWR"),
         plot_bgcolor="white",
         font_color=styles.BRAND_TEXT,
     )

@@ -6,7 +6,7 @@ import requests
 import pandas as pd
 import datetime
 from urllib.parse import urlparse, urlunparse
-
+from src.i18n.i18n import t
 import unicodedata
 import datetime
 from dateutil.relativedelta import relativedelta  # pip install python-dateutil
@@ -53,6 +53,32 @@ def clean_df(records):
     # --- eliminar columnas si existen ---
     df_filtrado = records.drop(columns=[col for col in columnas_excluir if col in records.columns])
 
+    cols = list(df_filtrado.columns)
+
+    # # 2️⃣ Crear un diccionario de renombre limpio → traducido
+    # rename_dict = {
+    #     col: t(col.replace("_", " ").capitalize())   # elimina "_" y traduce
+    #     for col in cols
+    # }
+
+    # rename_dict = {
+    #     "id_jugadora": t("Idenficación"),
+    #     "nombre_jugadora": t("Jugadora"),
+    #     "fecha_sesion": t("Fecha"),
+    #     "Tipo": t("Tipo"),
+    #     "Recuperacion": t("Recuperación"),
+    #     "Energia": t("Energía"),
+    #     "Sueno": t("Sueño"),
+    #     "Estrés": t("Estrés"),
+    #     "Dolor": t("Dolor"),
+    #     "wellness_score": t("Wellness Score"),
+    # }
+
+    #st.text(rename_dict)
+
+    # 3️⃣ Aplicar el renombre al DataFrame
+    #df_traducido = df_filtrado.rename(columns=rename_dict)
+
     #orden = ["fecha_lesion", "nombre_jugadora", "posicion", "plantel" ,"id_lesion", "lugar", "segmento", "zona_cuerpo", "zona_especifica", "lateralidad", "tipo_lesion", "tipo_especifico", "gravedad", "tipo_tratamiento", "personal_reporta", "estado_lesion", "sesiones"]
     
     # Solo mantener columnas que realmente existen
@@ -63,9 +89,9 @@ def clean_df(records):
     #df_filtrado = df_filtrado[orden + [c for c in df_filtrado.columns if c not in orden]]
 
     #df_filtrado = df_filtrado.sort_values("fecha_hora_registro", ascending=False)
-    df_filtrado.reset_index(drop=True, inplace=True)
-    df_filtrado.index = df_filtrado.index + 1
-    return df_filtrado
+    df_traducido.reset_index(drop=True, inplace=True)
+    df_traducido.index = df_traducido.index + 1
+    return df_traducido
 
 def ordenar_df(df: pd.DataFrame, columna: str, ascendente: bool = True) -> pd.DataFrame:
     """
