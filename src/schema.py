@@ -1,4 +1,5 @@
 import datetime
+from src.i18n.i18n import t
 
 # Diccionario de equivalencias
 MAP_POSICIONES = {
@@ -17,6 +18,20 @@ DIAS_SEMANA = {
     "Friday": "Viernes",
     "Saturday": "Sábado",
     "Sunday": "Domingo"
+}
+
+OPCIONES_TURNO = {
+    "Turno 1": t("Turno 1"),
+    "Turno 2": t("Turno 2"),
+    "Turno 3": t("Turno 3")
+}
+
+# Diccionario clave interna → texto traducido
+OPCIONES_PERIODO = {
+    "Hoy": t("Hoy"),
+    "Último día": t("Último día"),
+    "Semana": t("Semana"),
+    "Mes": t("Mes")
 }
 
 def new_base_record(id_jugadora: str, username: str, tipo: str) -> dict:

@@ -4,6 +4,7 @@ from datetime import date, timedelta
 
 from src.styles import WELLNESS_COLOR_NORMAL, WELLNESS_COLOR_INVERTIDO, get_color_wellness
 from src.util import ordenar_df
+from src.i18n.i18n import t
 
 W_COLS = ["recuperacion", "energia", "sueno", "stress", "dolor"]
 
@@ -57,24 +58,21 @@ def get_default_period(df: pd.DataFrame) -> str:
     else:
         return "Mes"
 
-from datetime import date
-import pandas as pd
-
 def filter_df_by_period(df: pd.DataFrame, periodo: str):
     fecha_max = df["fecha_sesion"].max()
 
     if periodo == "Hoy":
         filtro = df["fecha_dia"] == date.today()
-        texto = "el día de hoy"
+        texto = t("el día de hoy")
     elif periodo == "Último día":
         filtro = df["fecha_dia"] == fecha_max
-        texto = "el último día"
+        texto = t("el último día")
     elif periodo == "Semana":
         filtro = df["fecha_sesion"] >= (fecha_max - pd.Timedelta(days=7))
-        texto = "la última semana"
+        texto = t("la última semana")
     else:
         filtro = df["fecha_sesion"] >= (fecha_max - pd.Timedelta(days=30))
-        texto = "el último mes"
+        texto = t("el último mes")
 
     # --- Aplicar filtro ---
     df_filtrado = df[filtro].copy()
@@ -169,17 +167,17 @@ delta_ua, chart_ua, alertas_count, total_jugadoras, alertas_pct, chart_alertas, 
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric(
-            "Bienestar promedio del grupo",
+            t("Bienestar promedio del grupo"),
             f"{wellness_prom if not pd.isna(wellness_prom) else 0}/25",
             f"{delta_wellness:+.1f}%",
             chart_data=chart_wellness,
             chart_type="area",
             border=True,
-            help=f"Promedio de bienestar global ({articulo})."
+            help=f"{t('Promedio de bienestar global')} ({articulo})."
         )
     with col2:
         st.metric(
-            "Esfuerzo percibido promedio (RPE)",
+            t("Esfuerzo percibido promedio (RPE)"),
             f"{rpe_prom if not pd.isna(rpe_prom) else 0}",
             f"{delta_rpe:+.1f}%",
             chart_data=chart_rpe,
@@ -189,7 +187,7 @@ delta_ua, chart_ua, alertas_count, total_jugadoras, alertas_pct, chart_alertas, 
         )
     with col3:
         st.metric(
-            "Carga interna total (UA)",
+            t("Carga interna total (UA)"),
             ua_total,
             f"{delta_ua:+.1f}%",
             chart_data=chart_ua,
@@ -198,15 +196,15 @@ delta_ua, chart_ua, alertas_count, total_jugadoras, alertas_pct, chart_alertas, 
         )
     with col4:
         st.metric(
-            "Jugadoras en Zona Roja",
+            t("Jugadoras en Zona Roja"),
             f"{alertas_count}/{total_jugadoras}",
             f"{delta_alertas:+.1f}%",
             chart_data=chart_alertas,
             chart_type="bar",
             border=True,
             delta_color="inverse",
-            help=f"{alertas_count} de {total_jugadoras} jugadoras ({alertas_pct}%) "
-                 f"con bienestar promedio <15 o dolor >3 ({articulo})."
+            help=f"{alertas_count} {t('de')} {total_jugadoras} {t('jugadoras')} ({alertas_pct}%) "
+                 f"{t('con bienestar promedio <15 o dolor >3')} ({articulo})."
         )
 
 def mostrar_resumen_tecnico(wellness_prom: float, rpe_prom: float, ua_total: float,
@@ -256,53 +254,53 @@ def show_interpretation(wellness_prom, rpe_prom, ua_total, alertas_count, alerta
     # === Generar tabla interpretativa ===
     interpretacion_data = [
         {
-            "Métrica": "Índice de Bienestar Promedio",
-            "Valor": f"{wellness_prom if not pd.isna(wellness_prom) else 0}/25",
-            "Interpretación": (
-                "🟢 Óptimo (>20): El grupo mantiene un estado físico y mental adecuado. " if wellness_prom > 20 else
-                "🟡 Moderado (15-19): Existen signos leves de fatiga o estrés. " if 15 <= wellness_prom <= 19 else
-                "🔴 Alerta (<15): El grupo muestra fatiga o malestar significativo. "
+            t("Métrica"): t("Índice de Bienestar Promedio"),
+            t("Valor"): f"{wellness_prom if not pd.isna(wellness_prom) else 0}/25",
+            t("Interpretación"): (
+                t("🟢 Óptimo (>20): El grupo mantiene un estado físico y mental adecuado. ") if wellness_prom > 20 else
+                t("🟡 Moderado (15-19): Existen signos leves de fatiga o estrés. ") if 15 <= wellness_prom <= 19 else
+                t("🔴 Alerta (<15): El grupo muestra fatiga o malestar significativo. ")
             )
         },
         {
-            "Métrica": "RPE Promedio",
-            "Valor": f"{rpe_prom if not pd.isna(rpe_prom) else 0}",
-            "Interpretación": (
-                "🟢 Controlado (<6): El esfuerzo percibido está dentro de los rangos esperados. " if rpe_prom < 6 else
-                "🟡 Medio (6-7): Carga elevada, pero dentro de niveles aceptables. " if 6 <= rpe_prom <= 7 else
-                "🔴 Alto (>7): Percepción de esfuerzo muy alta. "
+            t("Métrica"): t("RPE Promedio"),
+            t("Valor"): f"{rpe_prom if not pd.isna(rpe_prom) else 0}",
+            t("Interpretación"): (
+                t("🟢 Controlado (<6): El esfuerzo percibido está dentro de los rangos esperados. ") if rpe_prom < 6 else
+                t("🟡 Medio (6-7): Carga elevada, pero dentro de niveles aceptables. ") if 6 <= rpe_prom <= 7 else
+                t("🔴 Alto (>7): Percepción de esfuerzo muy alta. ")
             )
         },
         {
-            "Métrica": "Carga Total (UA)",
-            "Valor": f"{ua_total}",
-            "Interpretación": (
-                "🟢 Estable: La carga total se mantiene dentro de los márgenes planificados. " if abs(delta_ua) < 10 else
-                "🟡 Variación moderada (10-20%): Ajustes leves de carga detectados. " if 10 <= abs(delta_ua) <= 20 else
-                "🔴 Variación fuerte (>20%): Aumento o descenso brusco de la carga. "
+            t("Métrica"): t("Carga Total (UA)"),
+            t("Valor"): f"{ua_total}",
+            t("Interpretación"): (
+                t("🟢 Estable: La carga total se mantiene dentro de los márgenes planificados. ") if abs(delta_ua) < 10 else
+                t("🟡 Variación moderada (10-20%): Ajustes leves de carga detectados. ") if 10 <= abs(delta_ua) <= 20 else
+                t("🔴 Variación fuerte (>20%): Aumento o descenso brusco de la carga. ")
             )
         },
         {
-            "Métrica": "Jugadoras en Zona Roja",
-            "Valor": f"{alertas_count}/{total_jugadoras} ({alertas_pct}%)",
-            "Interpretación": (
-                "🟢 Grupo estable: Ninguna jugadora muestra indicadores de riesgo. " if alertas_pct == 0 else
-                "🟡 Seguimiento leve (<15%): Algunas jugadoras presentan fatiga o molestias leves. " if alertas_pct <= 15 else
-                "🔴 Riesgo elevado (>15%): Varios casos de fatiga o dolor detectados. "
+            t("Métrica"): t("Jugadoras en Zona Roja"),
+            t("Valor"): f"{alertas_count}/{total_jugadoras} ({alertas_pct}%)",
+            t("Interpretación"): (
+                t("🟢 Grupo estable: Ninguna jugadora muestra indicadores de riesgo. ") if alertas_pct == 0 else
+                t("🟡 Seguimiento leve (<15%): Algunas jugadoras presentan fatiga o molestias leves. ") if alertas_pct <= 15 else
+                t("🔴 Riesgo elevado (>15%): Varios casos de fatiga o dolor detectados. ")
             )
         }
     ]
 
-    with st.expander("Interpretación de las métricas"):
+    with st.expander(t("Interpretación de las métricas")):
         df_interpretacion = pd.DataFrame(interpretacion_data)
-        df_interpretacion["Interpretación"] = df_interpretacion["Interpretación"].str.replace("\n", "<br>")
+        df_interpretacion[t("Interpretación")] = df_interpretacion[t("Interpretación")].str.replace("\n", "<br>")
         #st.markdown("**Interpretación de las métricas**")
         st.dataframe(df_interpretacion, hide_index=True)
 
         st.caption(
-        "🟢 / 🔴 Los colores en los gráficos muestran *variaciones* respecto al periodo anterior "
+        t("🟢 / 🔴 Los colores en los gráficos muestran *variaciones* respecto al periodo anterior "
         "(🔺 sube, 🔻 baja). Los colores en la interpretación reflejan *niveles fisiológicos* "
-        "según umbrales deportivos."
+        "según umbrales deportivos.")
     )
 
 
@@ -390,7 +388,7 @@ def generar_resumen_periodo(df: pd.DataFrame):
     ].mean(axis=1, skipna=True)
 
     # ======================================================
-    # ⚠️ Cálculo de riesgo coherente con compute_player_wellness_means
+    # Cálculo de riesgo coherente con compute_player_wellness_means
     # ======================================================
     try:
         riesgo_df = compute_player_wellness_means(df_periodo)
@@ -447,26 +445,43 @@ def generar_resumen_periodo(df: pd.DataFrame):
         ]
 
     # ======================================================
-    # 📊 Mostrar tabla final
+    # Mostrar tabla final
     # ======================================================
+    resumen = resumen.rename(columns={
+        "nombre_jugadora": t("Jugadora"),
+        "Registros/Días": t("Registros/Días"),
+        "Recuperación": t("Recuperación"),
+        "Energía": t("Energía"),
+        "Sueño": t("Sueño"),
+        "Estrés": t("Estrés"),
+        "Dolor": t("Dolor"),
+        "Promedio_Wellness": t("Promedio Wellness"),
+        "RPE_promedio": t("RPE promedio"),
+        "UA_total": t("UA total"),
+        "En_riesgo": t("En riesgo")
+    })
+
     styled = (
         resumen.style
-        .apply(color_por_variable, subset=["Recuperación", "Energía", "Sueño", "Estrés", "Dolor"])
-        .apply(color_promedios, subset=["Promedio_Wellness"])
-        .apply(color_rpe_ua, subset=["RPE_promedio"])
-        .apply(color_rpe_ua, subset=["UA_total"])
-        .apply(color_riesgo, subset=["En_riesgo"])
+        .apply(color_por_variable, subset=[t("Recuperación"), t("Energía"), t("Sueño"), t("Estrés"), t("Dolor")])
+        .apply(color_promedios, subset=[t("Promedio Wellness")])
+        .apply(color_rpe_ua, subset=[t("RPE promedio")])
+        .apply(color_rpe_ua, subset=[t("UA total")])
+        .apply(color_riesgo, subset=[t("En riesgo")])
         .format(precision=2, na_rep="")
     )
 
     st.dataframe(styled, hide_index=True)
 
-    st.caption(
-        ":material/info: **Criterio de riesgo en la tabla:** "
-        "una jugadora se considera *en riesgo* si el **promedio de bienestar (1-5x5) < 15 puntos** "
-        "o si la variable **Dolor > 3**. "
-        "Este criterio combina el **riesgo global** (fatiga / bienestar bajo) y el **riesgo localizado** (molestias o dolor elevado)."
-    )
+    # st.caption(
+    #     ":material/info: **Criterio de riesgo en la tabla:** "
+    #     "una jugadora se considera *en riesgo* si el **promedio de bienestar (1-5x5) < 15 puntos** "
+    #     "o si la variable **Dolor > 3**. "
+    #     "Este criterio combina el **riesgo global** (fatiga / bienestar bajo) y el **riesgo localizado** (molestias o dolor elevado)."
+    # )
+
+    st.caption(t(":material/info: **Criterio de riesgo en la tabla:** una jugadora se considera *en riesgo* si el **promedio de bienestar (1-5x5) < 15 puntos** o si la variable **Dolor > 3**. Este criterio combina el **riesgo global** (fatiga / bienestar bajo) y el **riesgo localizado** (molestias o dolor elevado)."))
+
 
 def _filtrar_pendientes(df_periodo: pd.DataFrame, df_jugadoras: pd.DataFrame, tipo: str) -> pd.DataFrame:
     """

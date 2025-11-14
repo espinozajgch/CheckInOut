@@ -23,7 +23,7 @@ if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
 
-st.header("Simulador de :red[Registros]", divider=True)
+st.header("Simulador de :red[Registros]", divider="red")
 
 menu()
 

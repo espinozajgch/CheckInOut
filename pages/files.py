@@ -3,7 +3,7 @@ import src.config as config
 config.init_config()
 
 from src.ui_components import selection_header
-
+from src.i18n.i18n import t
 from src.auth_system.auth_core import init_app_state, validate_login
 from src.auth_system.auth_ui import login_view, menu
 
@@ -20,7 +20,7 @@ if not st.session_state["auth"]["is_logged_in"]:
 if st.session_state["auth"]["rol"].lower() not in ["admin", "developer"]:
     st.switch_page("app.py")
     
-st.header("Administrador de :red[registros]", divider=True)
+st.header(t("Administrador de :red[registros]"), divider="red")
 
 menu()
 
@@ -33,26 +33,27 @@ wellness_df = get_records_wellness_db()
 records, jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, wellness_df, modo="reporte")
 
 if records.empty:
-    st.error("No se encontraron registros")
+    st.error(t("No se encontraron registros"))
     st.stop()
 
 disabled = records.columns.tolist()
 
+columna = t("seleccionar")
 # --- Agregar columna de selección si no existe ---
-if "seleccionar" not in records.columns:
-    records.insert(0, "seleccionar", False)
+if columna not in records.columns:
+    records.insert(0, columna, False)
 
 #records_vista = records.drop("id", axis=1)
 
 df_edited = st.data_editor(records, 
         column_config={
-            "seleccionar": st.column_config.CheckboxColumn("Seleccionar", default=False)},   
+            columna: st.column_config.CheckboxColumn(columna, default=False)},   
         num_rows="fixed", hide_index=True, disabled=disabled)
 
-ids_seleccionados = df_edited.loc[df_edited["seleccionar"], "id"].tolist()
+ids_seleccionados = df_edited.loc[df_edited[columna], "id"].tolist()
 
 if st.session_state["auth"]["rol"].lower() in ["developer"]:
-    st.write("🩺 Registros seleccionadas:", ids_seleccionados)
+    st.write(t("Registros seleccionados:"), ids_seleccionados)
 
 #st.dataframe(records, hide_index=True)
 # save_if_modified(records, df_edited)
@@ -62,16 +63,16 @@ exito, mensaje = False, ""
 # ===============================
 # 🔸 Diálogo de confirmación
 # ===============================
-@st.dialog("Confirmar eliminación", width="small")
+@st.dialog(t("Confirmar"), width="small")
 def dialog_eliminar():
-    st.warning(f"¿Está seguro de eliminar {len(ids_seleccionados)} elemento(s)?")
+    st.warning(f"¿{t('Está seguro de eliminar')} {len(ids_seleccionados)} {t('elemento')}(s)?")
 
     _, col2, col3 = st.columns([1.8, 1, 1])
     with col2:
-        if st.button(":material/cancel: Cancelar"):
+        if st.button(t(":material/cancel: Cancelar")):
             st.rerun()
     with col3:
-        if st.button(":material/delete: Eliminar", type="primary"):
+        if st.button(t(":material/delete: Eliminar"), type="primary"):
             exito, mensaje = delete_wellness(ids_seleccionados)
 
             if exito:
@@ -87,11 +88,11 @@ if st.session_state.get("reload_flag") and exito:
 col1, col2, col3, _, _ = st.columns([1.6, 1.8, 2, 1, 1])
 with col1:
     # --- Botón principal para abrir el diálogo ---
-    if st.button(":material/delete: Eliminar seleccionados", disabled=len(ids_seleccionados) == 0):
+    if st.button(t(":material/delete: Eliminar seleccionados"), disabled=len(ids_seleccionados) == 0):
         dialog_eliminar()
 with col2:
     st.download_button(
-            label=":material/download: Descargar registros en CSV",
+            label=t(":material/download: Descargar registros en CSV"),
             data=csv_data, file_name="registros_wellness.csv", mime="text/csv")
 
 if st.session_state["auth"]["rol"].lower() in ["developer"]:
@@ -102,6 +103,6 @@ if st.session_state["auth"]["rol"].lower() in ["developer"]:
 
             # Botón de descarga
             st.download_button(
-                label=":material/download: Descargar registros en JSON",
+                label=t(":material/download: Descargar registros en JSON"),
                 data=json_bytes, file_name="registros_wellness.json", mime="application/json"
             )

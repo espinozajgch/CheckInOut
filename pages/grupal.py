@@ -1,10 +1,11 @@
 import streamlit as st
 import src.config as config
-config.init_config()
 
+from src.i18n.i18n import t
 from src.auth_system.auth_core import init_app_state, validate_login
 from src.auth_system.auth_ui import login_view, menu
 
+config.init_config()
 init_app_state()
 validate_login()
 
@@ -18,7 +19,7 @@ if not st.session_state["auth"]["is_logged_in"]:
     st.stop()
 
 #st.header('Riesgo de :red[lesión (proximidad)]', divider="red")
-st.header("Análisis :red[grupal]", divider=True)
+st.header(t("Análisis :red[grupal]"), divider="red")
 
 menu()
 

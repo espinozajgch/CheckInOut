@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from .metrics import compute_rpe_metrics, RPEFilters
+from src.i18n.i18n import t
 
 from .plots_individuales import (
     grafico_rpe_ua,
@@ -21,38 +22,121 @@ def metricas(df: pd.DataFrame, jug_sel, turno_sel, start, end) -> None:
 
     # --- Validar datos ---
     if df is None or df.empty:
-        st.info("No hay registros disponibles para análisis individual.")
+        st.info(t("No hay registros disponibles para análisis individual."))
         return
 
     # --- Resumen general ---
     st.divider()
-    st.markdown("### **Resumen de carga individual**")
+    st.markdown(t("### **Resumen de carga individual**"))
     k1, k2, k3, k4, k5, k6 = st.columns(6)
 
     with k1:
-        st.metric("Minutos último día", value=(f"{metrics['minutos_sesion']:.0f}" if pd.notna(metrics['minutos_sesion']) else "-"))
-        st.metric("Carga mes", help="Control de mesociclo", value=(f"{metrics['carga_mes']:.0f}" if metrics["carga_mes"] is not None else "-"))
+        st.metric(t("Minutos último día"), value=(f"{metrics['minutos_sesion']:.0f}" if pd.notna(metrics['minutos_sesion']) else "-"))
+        st.metric(t("Carga mes"), help=t("Control de mesociclo"), value=(f"{metrics['carga_mes']:.0f}" if metrics["carga_mes"] is not None else "-"))
     with k2:
-        st.metric("UA total último día", help="Intensidad del entrenamiento o partido", value=(f"{metrics['ua_total_dia']:.0f}" if metrics["ua_total_dia"] is not None else "-"))
-        st.metric("Carga media mes", help="Control de mesociclo", value=(f"{metrics['carga_media_mes']:.2f}" if metrics["carga_media_mes"] is not None else "-"))
+        st.metric(t("UA total último día"), help=t("Intensidad del entrenamiento o partido"), value=(f"{metrics['ua_total_dia']:.0f}" if metrics["ua_total_dia"] is not None else "-"))
+        st.metric(t("Carga media mes"), help=t("Control de mesociclo"), value=(f"{metrics['carga_media_mes']:.2f}" if metrics["carga_media_mes"] is not None else "-"))
     with k3:
-        st.metric("Carga semana", help="Volumen del microciclo", value=(f"{metrics['carga_semana']:.0f}" if metrics["carga_semana"] is not None else "-"))
-        st.metric("Fatiga aguda (7d)", help="Estrés agudo", value=(f"{metrics['fatiga_aguda']:.0f}" if metrics["fatiga_aguda"] is not None else "-"))
+        st.metric(t("Carga semana"), help=t("Volumen del microciclo"), value=(f"{metrics['carga_semana']:.0f}" if metrics["carga_semana"] is not None else "-"))
+        st.metric(t("Fatiga aguda (7d)"), help=t("Estrés agudo"), value=(f"{metrics['fatiga_aguda']:.0f}" if metrics["fatiga_aguda"] is not None else "-"))
     with k4:
-        st.metric("Carga media semana", help="Control semanal equilibrado", value=(f"{metrics['carga_media_semana']:.2f}" if metrics["carga_media_semana"] is not None else "-"))
-        st.metric("Fatiga crónica (28d)", help="Nivel de adaptación (Media)", value=(f"{metrics['fatiga_cronica']:.1f}" if metrics["fatiga_cronica"] is not None else "-"))
+        st.metric(t("Carga media semana"), help=t("Control semanal equilibrado"), value=(f"{metrics['carga_media_semana']:.2f}" if metrics["carga_media_semana"] is not None else "-"))
+        st.metric(t("Fatiga crónica (28d)"), help=t("Nivel de adaptación (Media)"), value=(f"{metrics['fatiga_cronica']:.1f}" if metrics["fatiga_cronica"] is not None else "-"))
     with k5:
-        st.metric("Monotonía semana", help="Detectar sesiones demasiado parecidas", value=(f"{metrics['monotonia_semana']:.2f}" if metrics["monotonia_semana"] is not None else "-"))
-        st.metric("Adaptación", help="Balance entre fatiga aguda y crónica", value=(f"{metrics['adaptacion']:.2f}" if metrics["adaptacion"] is not None else "-"))
+        st.metric(t("Monotonía semana"), help=t("Detectar sesiones demasiado parecidas"), value=(f"{metrics['monotonia_semana']:.2f}" if metrics["monotonia_semana"] is not None else "-"))
+        st.metric(t("Adaptación"), help=t("Balance entre fatiga aguda y crónica"), value=(f"{metrics['adaptacion']:.2f}" if metrics["adaptacion"] is not None else "-"))
     with k6:
-        st.metric("Variabilidad semanal", help="Índice de variabilidad semanal", value=(f"{metrics['variabilidad_semana']:.2f}" if metrics["variabilidad_semana"] is not None else "-"))
-        st.metric("ACWR", help="Relación entre fatiga aguda y crónica", value=(f"{metrics['acwr']:.2f}" if metrics["acwr"] is not None else "-"))
+        st.metric(t("Variabilidad semanal"), help=t("Índice de variabilidad semanal"), value=(f"{metrics['variabilidad_semana']:.2f}" if metrics["variabilidad_semana"] is not None else "-"))
+        st.metric(t("ACWR"), help=t("Relación entre fatiga aguda y crónica"), value=(f"{metrics['acwr']:.2f}" if metrics["acwr"] is not None else "-"))
 
     resumen = _get_resumen_tecnico_carga(metrics)
     st.markdown(resumen, unsafe_allow_html=True)
 
     #st.dataframe(df)
     #tabla_wellness_individual(df)
+
+# def _get_resumen_tecnico_carga(metrics: dict) -> str:
+#     """
+#     Genera un resumen técnico con interpretación y colores visuales
+#     (rojo = riesgo, naranja = medio, verde = óptimo).
+#     Devuelve un texto formateado en HTML para st.markdown().
+#     """
+
+#     def color_text(text, color):
+#         return f"<b style='color:{color}'>{text}</b>"
+
+#     # --- valores base ---
+#     carga_semana = metrics.get("carga_semana", 0) or 0
+#     carga_mes = metrics.get("carga_mes", 0) or 0
+#     fatiga_aguda = metrics.get("fatiga_aguda", 0) or 0
+#     fatiga_cronica = metrics.get("fatiga_cronica", 0) or 0
+#     acwr = metrics.get("acwr")
+#     monotonia = metrics.get("monotonia_semana")
+#     adaptacion = metrics.get("adaptacion")
+#     ua_total_dia = metrics.get("ua_total_dia", 0) or 0
+#     minutos_dia = metrics.get("minutos_sesion", 0) or 0
+
+#     # --- CARGA SEMANAL ---
+#     if carga_semana > 2500:
+#         carga_estado = color_text("alta", "#E53935")  # rojo
+#     elif carga_semana >= 1500:
+#         carga_estado = color_text("moderada", "#FB8C00")  # naranja
+#     else:
+#         carga_estado = color_text("baja", "#43A047")  # verde
+
+#     # --- FATIGA AGUDA ---
+#     if fatiga_aguda > 2000:
+#         estado_fatiga = color_text("elevada", "#E53935")
+#     elif fatiga_aguda >= 1000:
+#         estado_fatiga = color_text("controlada", "#FB8C00")
+#     else:
+#         estado_fatiga = color_text("baja", "#43A047")
+
+#     # --- ACWR ---
+#     if acwr is None:
+#         riesgo = color_text("sin datos suficientes", "#757575")
+#     elif acwr > 1.5:
+#         riesgo = color_text("riesgo alto de sobrecarga", "#E53935")
+#     elif acwr < 0.8:
+#         riesgo = color_text("subcarga o falta de estímulo", "#FB8C00")
+#     else:
+#         riesgo = color_text("relación óptima entre carga aguda y crónica", "#43A047")
+
+#     # --- MONOTONÍA ---
+#     if monotonia is None:
+#         variabilidad = color_text("sin datos de variabilidad", "#757575")
+#     elif monotonia > 1.8:
+#         variabilidad = color_text("poca variabilidad entre sesiones", "#E53935")
+#     elif monotonia >= 1.5:
+#         variabilidad = color_text("variabilidad moderada", "#FB8C00")
+#     else:
+#         variabilidad = color_text("buena variabilidad semanal", "#43A047")
+
+#     # --- ADAPTACIÓN ---
+#     if adaptacion is None:
+#         estado_adapt = color_text("no disponible", "#757575")
+#     elif adaptacion < 0:
+#         estado_adapt = color_text("negativa (predomina la fatiga)", "#E53935")
+#     elif adaptacion == 0:
+#         estado_adapt = color_text("neutral", "#FB8C00")
+#     else:
+#         estado_adapt = color_text("positiva (asimilación adecuada del entrenamiento)", "#43A047")
+
+#     # --- construir resumen con colores ---
+#     resumen = (
+#         f":material/description: **Resumen técnico:** <div style='text-align: justify;'>En el último día registrado se completaron "
+#         f"{color_text(f'{minutos_dia:.0f} minutos', '#43A047')} de sesión con una carga interna de "
+#         f"{color_text(f'{ua_total_dia:.0f} UA', '#43A047')}. "
+#         f"La carga semanal actual es {carga_estado} "
+#         f"({color_text(f'{carga_semana:.0f} UA', '#607D8B')}) y la carga mensual acumulada asciende a "
+#         f"{color_text(f'{carga_mes:.0f} UA', '#607D8B')}. "
+#         f"La fatiga aguda es {estado_fatiga}, mientras que la fatiga crónica se mantiene en "
+#         f"{color_text(f'{fatiga_cronica:.1f} UA de media', '#607D8B')}, indicando una adaptación {estado_adapt}. "
+#         f"El índice ACWR sugiere {riesgo}, y la monotonía semanal refleja {variabilidad}."
+#         f"</div>"
+#     )
+
+#     return resumen
 
 def _get_resumen_tecnico_carga(metrics: dict) -> str:
     """
@@ -77,65 +161,63 @@ def _get_resumen_tecnico_carga(metrics: dict) -> str:
 
     # --- CARGA SEMANAL ---
     if carga_semana > 2500:
-        carga_estado = color_text("alta", "#E53935")  # rojo
+        carga_estado = color_text(t("alta"), "#E53935")  # rojo
     elif carga_semana >= 1500:
-        carga_estado = color_text("moderada", "#FB8C00")  # naranja
+        carga_estado = color_text(t("moderada"), "#FB8C00")  # naranja
     else:
-        carga_estado = color_text("baja", "#43A047")  # verde
+        carga_estado = color_text(t("baja"), "#43A047")  # verde
 
     # --- FATIGA AGUDA ---
     if fatiga_aguda > 2000:
-        estado_fatiga = color_text("elevada", "#E53935")
+        estado_fatiga = color_text(t("elevada"), "#E53935")
     elif fatiga_aguda >= 1000:
-        estado_fatiga = color_text("controlada", "#FB8C00")
+        estado_fatiga = color_text(t("controlada"), "#FB8C00")
     else:
-        estado_fatiga = color_text("baja", "#43A047")
+        estado_fatiga = color_text(t("baja"), "#43A047")
 
     # --- ACWR ---
     if acwr is None:
-        riesgo = color_text("sin datos suficientes", "#757575")
+        riesgo = color_text(t("sin datos suficientes"), "#757575")
     elif acwr > 1.5:
-        riesgo = color_text("riesgo alto de sobrecarga", "#E53935")
+        riesgo = color_text(t("riesgo alto de sobrecarga"), "#E53935")
     elif acwr < 0.8:
-        riesgo = color_text("subcarga o falta de estímulo", "#FB8C00")
+        riesgo = color_text(t("subcarga o falta de estímulo"), "#FB8C00")
     else:
-        riesgo = color_text("relación óptima entre carga aguda y crónica", "#43A047")
+        riesgo = color_text(t("relación óptima entre carga aguda y crónica"), "#43A047")
 
     # --- MONOTONÍA ---
     if monotonia is None:
-        variabilidad = color_text("sin datos de variabilidad", "#757575")
+        variabilidad = color_text(t("sin datos de variabilidad"), "#757575")
     elif monotonia > 1.8:
-        variabilidad = color_text("poca variabilidad entre sesiones", "#E53935")
+        variabilidad = color_text(t("poca variabilidad entre sesiones"), "#E53935")
     elif monotonia >= 1.5:
-        variabilidad = color_text("variabilidad moderada", "#FB8C00")
+        variabilidad = color_text(t("variabilidad moderada"), "#FB8C00")
     else:
-        variabilidad = color_text("buena variabilidad semanal", "#43A047")
+        variabilidad = color_text(t("buena variabilidad semanal"), "#43A047")
 
     # --- ADAPTACIÓN ---
     if adaptacion is None:
-        estado_adapt = color_text("no disponible", "#757575")
+        estado_adapt = color_text(t("no disponible"), "#757575")
     elif adaptacion < 0:
-        estado_adapt = color_text("negativa (predomina la fatiga)", "#E53935")
+        estado_adapt = color_text(t("negativa (predomina la fatiga)"), "#E53935")
     elif adaptacion == 0:
-        estado_adapt = color_text("neutral", "#FB8C00")
+        estado_adapt = color_text(t("neutral"), "#FB8C00")
     else:
-        estado_adapt = color_text("positiva (asimilación adecuada del entrenamiento)", "#43A047")
+        estado_adapt = color_text(t("positiva (asimilación adecuada del entrenamiento)"), "#43A047")
 
     # --- construir resumen con colores ---
-    resumen = (
-        f":material/description: **Resumen técnico:** <div style='text-align: justify;'>En el último día registrado se completaron "
-        f"{color_text(f'{minutos_dia:.0f} minutos', '#43A047')} de sesión con una carga interna de "
-        f"{color_text(f'{ua_total_dia:.0f} UA', '#43A047')}. "
-        f"La carga semanal actual es {carga_estado} "
-        f"({color_text(f'{carga_semana:.0f} UA', '#607D8B')}) y la carga mensual acumulada asciende a "
-        f"{color_text(f'{carga_mes:.0f} UA', '#607D8B')}. "
-        f"La fatiga aguda es {estado_fatiga}, mientras que la fatiga crónica se mantiene en "
-        f"{color_text(f'{fatiga_cronica:.1f} UA de media', '#607D8B')}, indicando una adaptación {estado_adapt}. "
-        f"El índice ACWR sugiere {riesgo}, y la monotonía semanal refleja {variabilidad}."
-        f"</div>"
-    )
+    resumen = (f"{t(':material/description: **Resumen técnico:**')} <div style='text-align: justify;'> {t('En el último día registrado se completaron')} " 
+    f"{color_text(f'{minutos_dia:.0f} minutos', '#43A047')} {t('de sesión con una carga interna de')} " f"{color_text(f'{ua_total_dia:.0f} UA', '#43A047')}. "
+    f"{t('La carga semanal actual es')} {carga_estado} " 
+    f"({color_text(f'{carga_semana:.0f} UA', '#607D8B')}) {t('y la carga mensual acumulada asciende a')} " 
+    f"{color_text(f'{carga_mes:.0f} UA', '#607D8B')}. " 
+    f"{t('La fatiga aguda es')} {estado_fatiga}, {t('mientras que la fatiga crónica se mantiene en')} " 
+    f"{color_text(f'{fatiga_cronica:.1f} UA', '#607D8B')} {t('de media')}, {t('indicando una adaptación')} {estado_adapt}. " 
+    f"{t('El índice ACWR sugiere')} {riesgo}, {t('y la monotonía semanal refleja')} {variabilidad}." 
+    f"</div>" )
 
     return resumen
+
 
 def calcular_semaforo_riesgo(df: pd.DataFrame) -> tuple[str, str, float, float]:
     """
@@ -170,16 +252,15 @@ def calcular_semaforo_riesgo(df: pd.DataFrame) -> tuple[str, str, float, float]:
 
     # Lógica de riesgo
     if pd.isna(last_acwr) and pd.isna(last_fatiga):
-        return "⚪️", "Sin datos suficientes para evaluar riesgo.", np.nan, np.nan
-
+        return "⚪️", t("Sin datos suficientes para evaluar riesgo."), np.nan, np.nan
     if last_acwr > 1.5 or (not pd.isna(last_fatiga) and last_fatiga >= 4):
-        return "🔴", "Riesgo alto de sobrecarga o fatiga acumulada.", last_acwr, last_fatiga
+        return "🔴", t("Riesgo alto de sobrecarga o fatiga acumulada."), last_acwr, last_fatiga
     elif 1.3 <= last_acwr <= 1.5 or (not pd.isna(last_fatiga) and 3 <= last_fatiga < 4):
-        return "🟠", "Riesgo moderado; controlar volumen y recuperación.", last_acwr, last_fatiga
+        return "🟠", t("Riesgo moderado; controlar volumen y recuperación."), last_acwr, last_fatiga
     elif 0.8 <= last_acwr < 1.3 and (pd.isna(last_fatiga) or last_fatiga < 3):
-        return "🟢", "Riesgo bajo; zona óptima de carga y adaptación.", last_acwr, last_fatiga
+        return "🟢", t("Riesgo bajo; zona óptima de carga y adaptación."), last_acwr, last_fatiga
     else:
-        return "⚪️", "Carga muy baja; posible desadaptación o falta de estímulo.", last_acwr, last_fatiga
+        return "⚪️", t("Carga muy baja; posible desadaptación o falta de estímulo."), last_acwr, last_fatiga
 
 def graficos_individuales(df: pd.DataFrame):
     """Gráficos individuales para análisis de carga, bienestar y riesgo."""
@@ -190,13 +271,13 @@ def graficos_individuales(df: pd.DataFrame):
     df_player = df.copy().sort_values("fecha_sesion")
 
     #st.divider()
-    st.markdown("### **Gráficos individuales**")
+    st.markdown(t("### **Gráficos individuales**"))
 
     tabs = st.tabs([
-        "Wellness (1-5)",
-        "Fatiga y ACWR",
-        "RPE y UA",
-        "Duración vs RPE",
+        t("Wellness (1-5)"),
+        t("Fatiga y ACWR"),
+        t("RPE y UA"),
+        t("Duración vs RPE"),
         #"Riesgo de lesión"
     ])
 

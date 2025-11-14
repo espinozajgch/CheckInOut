@@ -2,6 +2,7 @@ import streamlit as st
 from src.db_login import load_user_from_db
 from src.auth_system.auth_core import logout, validate_access
 from src.util import centered_text
+from src.i18n.i18n import t, language_selector
 
 def login_view() -> None:
     """Renderiza el formulario de inicio de sesión."""
@@ -32,20 +33,22 @@ def login_view() -> None:
 def menu():
     with st.sidebar:
         st.logo("assets/images/banner.png", size="large")
+        language_selector()
         st.subheader(f'Rol: {st.session_state["auth"]["rol"].capitalize()} :material/admin_panel_settings:')
-        st.write(f"Hola **:blue-background[{st.session_state['auth']['username'].capitalize()}]** ")
+        st.write(f"{t('Hola')} **:blue-background[{st.session_state['auth']['username'].capitalize()}]** ")
 
-        st.page_link("app.py", label="Inicio", icon=":material/home:")
-        st.subheader("Modo :material/dashboard:")
-        st.page_link("pages/registro.py", label="Registro", icon=":material/article_person:")
-        st.subheader("Análisis y Estadísticas  :material/query_stats:")
-        st.page_link("pages/individual.py", label="Individual", icon=":material/accessible_menu:")
-        st.page_link("pages/grupal.py", label="Grupal", icon=":material/groups:")
+        st.page_link("app.py", label=t("Inicio"), icon=":material/home:")
+        st.subheader(t("Modo :material/dashboard:"))
+        st.page_link("pages/registro.py", label=t("Registro"), icon=":material/article_person:")
+        st.subheader(t("Análisis y Estadísticas :material/query_stats:"))
+        st.page_link("pages/individual.py", label=t("Individual"), icon=":material/accessible_menu:")
+        st.page_link("pages/grupal.py", label=t("Grupal"), icon=":material/groups:")
 
         if st.session_state["auth"]["rol"].lower() in ["admin", "developer"]:
-            st.subheader("Administración :material/settings:")
-            st.page_link("pages/files.py", label="Registros", icon=":material/docs:")
+            st.subheader(t("Administración :material/settings:"))
+            st.page_link("pages/files.py", label=t("Registros"), icon=":material/docs:")
 
-        if st.button("Cerrar Sesión", type="tertiary", icon=":material/logout:"):
+        if st.button(t("Cerrar Sesión"), type="tertiary", icon=":material/logout:"):
             logout()
-
+        
+        
