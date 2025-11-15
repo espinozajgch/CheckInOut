@@ -22,10 +22,9 @@ validate_login()
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
+menu()
 
 st.header("Simulador de :red[Registros]", divider="red")
-
-menu()
 
 col1, col2 = st.columns(2)
 with col1:

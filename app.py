@@ -31,7 +31,6 @@ validate_login()
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
-
 menu()
 
 st.header(t("Resumen de :red[Wellness] (1er Equipo)"), divider="red")

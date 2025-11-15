@@ -11,3 +11,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Menu e inicio de sesión.
 - Registro de check-in y check-out.
 - Visualización de registros.
+- Cookies y Login
+- Reportes
+- Traducciones

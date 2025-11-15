@@ -246,7 +246,18 @@ def tabla_wellness_individual(df: pd.DataFrame):
     t_df = t_df.sort_values("fecha_sesion", ascending=False).reset_index(drop=True)
 
     # Día de la semana en español
-    t_df["Día Semana"] = t_df["fecha_sesion"].dt.day_name(locale="es_ES")
+    day_map = {
+        "Monday": t("Lunes"),
+        "Tuesday": t("Martes"),
+        "Wednesday": t("Miércoles"),
+        "Thursday": t("Jueves"),
+        "Friday": t("Viernes"),
+        "Saturday": t("Sábado"),
+        "Sunday": t("Domingo")
+    }
+
+    t_df["Día Semana"] = t_df["fecha_sesion"].dt.day_name().map(day_map)
+    #t_df["Día Semana"] = t_df["fecha_sesion"].dt.day_name(locale="es_ES")
     t_df["fecha_sesion"] = t_df["fecha_sesion"].dt.date
 
     # Tipo de estímulo y readaptación

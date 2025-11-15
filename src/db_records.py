@@ -542,7 +542,8 @@ def load_jugadoras_db() -> pd.DataFrame | None:
             i.nacionalidad,
             i.altura,
             i.peso,
-            i.foto_url
+            i.foto_url,
+            i.foto_url_drive
         FROM futbolistas f
         LEFT JOIN informacion_futbolistas i 
             ON f.identificacion = i.identificacion

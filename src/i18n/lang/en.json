@@ -282,5 +282,18 @@
   "debido a que el promedio de bienestar x 5 es menor a 15 puntos": "because the (wellness average × 5) is less than 15 points",
   "(escala 25)": "(25-point scale)",
   "indicando fatiga, sobrecarga o molestias significativas que aumentan el riesgo de lesión o bajo rendimiento":
-    "indicating fatigue, overload or significant discomfort that increases the risk of injury or poor performance"
+    "indicating fatigue, overload or significant discomfort that increases the risk of injury or poor performance",
+  "Monday": "Monday",
+  "Tuesday": "Tuesday",
+  "Wednesday": "Wednesday",
+  "Thursday": "Thursday",
+  "Friday": "Friday",
+  "Saturday": "Saturday",
+  "Sunday": "Sunday",
+  ":red[:material/id_card: Identificación]": ":red[:material/id_card: Identification]",
+  ":red[:material/sports_soccer: Plantel]": ":red[:material/sports_soccer: Team]",
+  ":red[:material/cake: F. Nacimiento]": ":red[:material/cake: Date of Birth]",
+  ":red[:material/globe: País]": ":red[:material/globe: Country]",
+  ":red[:material/person: Posición]": ":red[:material/person: Position]",
+  ":red[:material/favorite: Edad]": ":red[:material/favorite: Age]"
 }
