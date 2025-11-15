@@ -115,7 +115,6 @@ def ordenar_df(df: pd.DataFrame, columna: str, ascendente: bool = True) -> pd.Da
     df_ordenado.index = df_ordenado.index + 1
     return df_ordenado
 
-
 def calcular_edad(fecha_nac):
     try:
         # Si viene como string -> convertir

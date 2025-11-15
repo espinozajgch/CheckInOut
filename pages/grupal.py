@@ -10,7 +10,7 @@ init_app_state()
 validate_login()
 
 from src.ui_components import selection_header
-from src.reportes.ui_grupal import group_dashboard
+from src.reports.ui_grupal import group_dashboard
 from src.db_records import get_records_wellness_db, load_jugadoras_db, load_competiciones_db
 
 # Authentication gate

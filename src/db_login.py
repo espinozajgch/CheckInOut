@@ -76,7 +76,13 @@ def load_all_users_from_db():
             u.name, u.lastname;
         """
 
-        df = pd.read_sql(query, conn)
+        cursor = conn.cursor(dictionary=True)
+        cursor.execute(query)
+        rows = cursor.fetchall()
+
+        # Convertir resultados a DataFrame
+        df = pd.DataFrame(rows)
+
         return df
 
     except Exception as e:
@@ -84,5 +90,7 @@ def load_all_users_from_db():
         return None
 
     finally:
+        if cursor:
+            cursor.close()
         if conn:
             conn.close()

@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 from src.i18n.i18n import t
-from src.reportes.plots_grupales import (plot_carga_semanal, plot_rpe_promedio, tabla_resumen)
+from src.reports.plots_grupales import (plot_carga_semanal, plot_rpe_promedio, tabla_resumen)
 
 
 def group_dashboard(df_filtrado: pd.DataFrame):

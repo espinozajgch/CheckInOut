@@ -279,6 +279,18 @@
   "debido a que el promedio de bienestar x 5 es menor a 15 puntos": "porque a média de bem-estar × 5 é inferior a 15 pontos",
   "(escala 25)": "(escala 25)",
   "indicando fatiga, sobrecarga o molestias significativas que aumentan el riesgo de lesión o bajo rendimiento":
-    "indicando fadiga, sobrecarga ou desconforto significativo que aumenta o risco de lesão ou baixo desempenho"
-
+    "indicando fadiga, sobrecarga ou desconforto significativo que aumenta o risco de lesão ou baixo desempenho",
+  "Monday": "Segunda-feira",
+  "Tuesday": "Terça-feira",
+  "Wednesday": "Quarta-feira",
+  "Thursday": "Quinta-feira",
+  "Friday": "Sexta-feira",
+  "Saturday": "Sábado",
+  "Sunday": "Domingo",
+  ":red[:material/id_card: Identificación]": ":red[:material/id_card: Identificação]",
+  ":red[:material/sports_soccer: Plantel]": ":red[:material/sports_soccer: Plantel]",
+  ":red[:material/cake: F. Nacimiento]": ":red[:material/cake: Data de Nascimento]",
+  ":red[:material/globe: País]": ":red[:material/globe: País]",
+  ":red[:material/person: Posición]": ":red[:material/person: Posição]",
+  ":red[:material/favorite: Edad]": ":red[:material/favorite: Idade]"
 }
