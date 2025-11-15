@@ -26,14 +26,6 @@ OPCIONES_TURNO = {
     "Turno 3": t("Turno 3")
 }
 
-# Diccionario clave interna → texto traducido
-OPCIONES_PERIODO = {
-    "Hoy": t("Hoy"),
-    "Último día": t("Último día"),
-    "Semana": t("Semana"),
-    "Mes": t("Mes")
-}
-
 def new_base_record(id_jugadora: str, username: str, tipo: str) -> dict:
     """Create a base record structure with defaults.
 

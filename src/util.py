@@ -51,9 +51,9 @@ def clean_df(records):
     ]
     
     # --- eliminar columnas si existen ---
-    df_filtrado = records.drop(columns=[col for col in columnas_excluir if col in records.columns])
+    df_traducido = records.drop(columns=[col for col in columnas_excluir if col in records.columns])
 
-    cols = list(df_filtrado.columns)
+    #cols = list(df_filtrado.columns)
 
     # # 2️⃣ Crear un diccionario de renombre limpio → traducido
     # rename_dict = {
