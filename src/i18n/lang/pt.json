@@ -262,5 +262,23 @@
   "indicando una adaptación": "indicando uma adaptação",
   "El índice ACWR sugiere": "O índice ACWR sugere",
   "y la monotonía semanal refleja": "e a monotonia semanal reflete",
-  ":material/description: **Resumen técnico:**": ":material/description: **Resumo técnico:**"
+  ":material/description: **Resumen técnico:**": ":material/description: **Resumo técnico:**",
+  "óptimo": "ótimo",
+  "moderado": "moderado",
+  "en fatiga": "em fadiga",
+  "sin datos": "sem dados",
+  "bajo": "baixo",
+  "alto": "alto",
+  "sin jugadoras en zona roja": "nenhuma jogadora na zona vermelha",
+  "1 jugadora en seguimiento": "1 jogadora em acompanhamento",
+  "jugadoras en zona roja": "jogadoras na zona vermelha",
+  "El grupo muestra un estado de bienestar": "O grupo apresenta um estado de bem-estar",
+  "con un esfuerzo percibido": "com um esforço percebido",
+  "La carga interna total es de": "A carga interna total é de",
+  "y actualmente hay": "e atualmente há",
+  "debido a que el promedio de bienestar x 5 es menor a 15 puntos": "porque a média de bem-estar × 5 é inferior a 15 pontos",
+  "(escala 25)": "(escala 25)",
+  "indicando fatiga, sobrecarga o molestias significativas que aumentan el riesgo de lesión o bajo rendimiento":
+    "indicando fadiga, sobrecarga ou desconforto significativo que aumenta o risco de lesão ou baixo desempenho"
+
 }

@@ -265,5 +265,22 @@
   "indicando una adaptación": "indicating an adaptation",
   "El índice ACWR sugiere": "The ACWR index suggests",
   "y la monotonía semanal refleja": "and weekly monotony reflects",
-  ":material/description: **Resumen técnico:**": ":material/description: **Technical summary:**"
+  ":material/description: **Resumen técnico:**": ":material/description: **Technical summary:**",
+  "óptimo": "optimal",
+  "moderado": "moderate",
+  "en fatiga": "fatigued",
+  "sin datos": "no data",
+  "bajo": "low",
+  "alto": "high",
+  "sin jugadoras en zona roja": "no players in the red zone",
+  "1 jugadora en seguimiento": "1 player under monitoring",
+  "jugadoras en zona roja": "players in the red zone",
+  "El grupo muestra un estado de bienestar": "The group shows a wellness state",
+  "con un esfuerzo percibido": "with a perceived effort",
+  "La carga interna total es de": "The total internal load is",
+  "y actualmente hay": "and currently there are",
+  "debido a que el promedio de bienestar x 5 es menor a 15 puntos": "because the (wellness average × 5) is less than 15 points",
+  "(escala 25)": "(25-point scale)",
+  "indicando fatiga, sobrecarga o molestias significativas que aumentan el riesgo de lesión o bajo rendimiento":
+    "indicating fatigue, overload or significant discomfort that increases the risk of injury or poor performance"
 }

@@ -207,6 +207,47 @@ delta_ua, chart_ua, alertas_count, total_jugadoras, alertas_pct, chart_alertas, 
                  f"{t('con bienestar promedio <15 o dolor >3')} ({articulo})."
         )
 
+# def mostrar_resumen_tecnico(wellness_prom: float, rpe_prom: float, ua_total: float,
+#                             alertas_count: int, total_jugadoras: int):
+#     """
+#     Muestra en pantalla el resumen técnico del grupo, con interpretación automática
+#     del estado de bienestar, esfuerzo percibido y riesgo de alerta.
+#     """
+
+#     # 🟢 Estado de bienestar (escala 25)
+#     estado_bienestar = (
+#         "óptimo" if wellness_prom > 20 else
+#         "moderado" if wellness_prom >= 15 else
+#         "en fatiga"
+#     )
+
+#     # 🟡 Nivel de esfuerzo percibido (RPE)
+#     if pd.isna(rpe_prom) or rpe_prom == 0:
+#         nivel_rpe = "sin datos"
+#     elif rpe_prom < 5:
+#         nivel_rpe = "bajo"
+#     elif rpe_prom <= 7:
+#         nivel_rpe = "moderado"
+#     else:
+#         nivel_rpe = "alto"
+
+#     # 🔴 Estado de alertas
+#     if alertas_count == 0:
+#         estado_alertas = "sin jugadoras en zona roja"
+#     elif alertas_count == 1:
+#         estado_alertas = "1 jugadora en seguimiento"
+#     else:
+#         estado_alertas = f"{alertas_count} jugadoras en zona roja"
+
+#     # 🧾 Resumen técnico mostrado en Streamlit
+#     st.markdown(
+#         f":material/description: **Resumen técnico:** El grupo muestra un estado de bienestar **{estado_bienestar}** "
+#         f"({wellness_prom}/25) con un esfuerzo percibido **{nivel_rpe}** (RPE {rpe_prom}). "
+#         f"La carga interna total es de **{ua_total} UA** y actualmente hay **{estado_alertas}**, "
+#         f"debido a que el **(promedio de bienestar x 5) < 15 puntos** (escala 25), "
+#         f"indicando **fatiga, sobrecarga o molestias significativas** que aumentan el riesgo de lesión o bajo rendimiento."
+#     )
+
 def mostrar_resumen_tecnico(wellness_prom: float, rpe_prom: float, ua_total: float,
                             alertas_count: int, total_jugadoras: int):
     """
@@ -216,37 +257,42 @@ def mostrar_resumen_tecnico(wellness_prom: float, rpe_prom: float, ua_total: flo
 
     # 🟢 Estado de bienestar (escala 25)
     estado_bienestar = (
-        "óptimo" if wellness_prom > 20 else
-        "moderado" if wellness_prom >= 15 else
-        "en fatiga"
+        t("óptimo") if wellness_prom > 20 else
+        t("moderado") if wellness_prom >= 15 else
+        t("en fatiga")
     )
 
     # 🟡 Nivel de esfuerzo percibido (RPE)
     if pd.isna(rpe_prom) or rpe_prom == 0:
-        nivel_rpe = "sin datos"
+        nivel_rpe = t("sin datos")
     elif rpe_prom < 5:
-        nivel_rpe = "bajo"
+        nivel_rpe = t("bajo")
     elif rpe_prom <= 7:
-        nivel_rpe = "moderado"
+        nivel_rpe = t("moderado")
     else:
-        nivel_rpe = "alto"
+        nivel_rpe = t("alto")
 
     # 🔴 Estado de alertas
     if alertas_count == 0:
-        estado_alertas = "sin jugadoras en zona roja"
+        estado_alertas = t("sin jugadoras en zona roja")
     elif alertas_count == 1:
-        estado_alertas = "1 jugadora en seguimiento"
+        estado_alertas = t("1 jugadora en seguimiento")
     else:
-        estado_alertas = f"{alertas_count} jugadoras en zona roja"
+        estado_alertas = f"{alertas_count} {t('jugadoras en zona roja')}"
 
     # 🧾 Resumen técnico mostrado en Streamlit
     st.markdown(
-        f":material/description: **Resumen técnico:** El grupo muestra un estado de bienestar **{estado_bienestar}** "
-        f"({wellness_prom}/25) con un esfuerzo percibido **{nivel_rpe}** (RPE {rpe_prom}). "
-        f"La carga interna total es de **{ua_total} UA** y actualmente hay **{estado_alertas}**, "
-        f"debido a que el **(promedio de bienestar x 5) < 15 puntos** (escala 25), "
-        f"indicando **fatiga, sobrecarga o molestias significativas** que aumentan el riesgo de lesión o bajo rendimiento."
+        f":material/description: **{t('Resumen técnico')}:** "
+        f"{t('El grupo muestra un estado de bienestar')} **{estado_bienestar}** "
+        f"({wellness_prom}/25) "
+        f"{t('con un esfuerzo percibido')} **{nivel_rpe}** (RPE {rpe_prom}). "
+        f"{t('La carga interna total es de')} **{ua_total} UA** "
+        f"{t('y actualmente hay')} **{estado_alertas}**, "
+        f"{t('debido a que el promedio de bienestar x 5 es menor a 15 puntos')} "
+        f"{t('(escala 25)')}, "
+        f"{t('indicando fatiga, sobrecarga o molestias significativas que aumentan el riesgo de lesión o bajo rendimiento')}."
     )
+
 
 def show_interpretation(wellness_prom, rpe_prom, ua_total, alertas_count, alertas_pct, delta_ua, total_jugadoras):
     # --- INTERPRETACIÓN VISUAL Y BRIEFING ---

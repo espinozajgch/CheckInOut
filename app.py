@@ -4,7 +4,7 @@ from src.auth_system.auth_core import init_app_state, validate_login
 from src.auth_system.auth_ui import login_view, menu
 
 from src.db_records import get_records_wellness_db, load_jugadoras_db
-from src.i18n.i18n import t
+
 from src.util import clean_df, data_format
 from src.ui_app import (
     get_default_period,
@@ -18,8 +18,7 @@ from src.ui_app import (
     get_pendientes_check
 )
 
-from src.schema import OPCIONES_PERIODO
-
+from src.i18n.i18n import t
 import src.config as config
 config.init_config()
 
@@ -33,9 +32,9 @@ if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
 
-st.header(t("Resumen de :red[Wellness] (1er Equipo)"), divider="red")
 menu()
-#st.session_state.clear()
+
+st.header(t("Resumen de :red[Wellness] (1er Equipo)"), divider="red")
 
 # ============================================================
 # 📦 CARGA DE DATOS
@@ -55,6 +54,14 @@ jug_df = jug_df[jug_df["plantel"] == "1FF"]
 # ============================================================
 
 default_period = get_default_period(df)
+
+# Diccionario clave interna → texto traducido
+OPCIONES_PERIODO = {
+    "Hoy": t("Hoy"),
+    "Último día": t("Último día"),
+    "Semana": t("Semana"),
+    "Mes": t("Mes")
+}
 
 periodo_traducido = st.radio(
     t("Periodo:"),

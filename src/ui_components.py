@@ -125,7 +125,7 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
 
 def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records_df: pd.DataFrame = None):
 
-    col_tipo, col_turno, col_plantel, col_jugadora = st.columns([1.5, 1, 2, 2])
+    col_tipo, col_turno, col_plantel, col_jugadora = st.columns([1.6, 1, 2, 2])
 
     with col_tipo:
         tipo = st.radio(t("Tipo de registro"), options=["Check-in", "Check-out"], horizontal=True, index=0)

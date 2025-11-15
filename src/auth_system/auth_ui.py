@@ -33,7 +33,8 @@ def login_view() -> None:
 def menu():
     with st.sidebar:
         st.logo("assets/images/banner.png", size="large")
-        language_selector()
+        lang = language_selector()
+        #st.session_state["lang"] = lang
         st.subheader(f'Rol: {st.session_state["auth"]["rol"].capitalize()} :material/admin_panel_settings:')
         st.write(f"{t('Hola')} **:blue-background[{st.session_state['auth']['username'].capitalize()}]** ")
 
