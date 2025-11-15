@@ -12,17 +12,16 @@ from src.db_records import delete_wellness, load_jugadoras_db, load_competicione
 init_app_state()
 validate_login()
 
+if st.session_state["auth"]["rol"].lower() not in ["admin", "developer"]:
+    st.switch_page("app.py")
+    
 # Authentication gate
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
-
-if st.session_state["auth"]["rol"].lower() not in ["admin", "developer"]:
-    st.switch_page("app.py")
-    
-st.header(t("Administrador de :red[registros]"), divider="red")
-
 menu()
+
+st.header(t("Administrador de :red[registros]"), divider="red")
 
 # Load reference data
 jug_df = load_jugadoras_db()

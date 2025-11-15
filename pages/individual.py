@@ -17,11 +17,10 @@ validate_login()
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
+menu()
 
 #st.header('RPE / :red[Cargas]', divider=True)
 st.header(t("Análisis :red[individual]"), divider="red")
-
-menu()
 
 # Load reference data
 jug_df = load_jugadoras_db()

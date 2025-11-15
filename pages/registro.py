@@ -21,10 +21,9 @@ from src.schema import new_base_record
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
+menu()
 
 st.header(t("Registro :red[:material/check_in_out:]"), divider="red")
-
-menu()
 
 # Load reference data
 df = get_records_wellness_db()

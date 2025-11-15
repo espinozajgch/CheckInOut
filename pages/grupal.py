@@ -17,11 +17,10 @@ from src.db_records import get_records_wellness_db, load_jugadoras_db, load_comp
 if not st.session_state["auth"]["is_logged_in"]:
     login_view()
     st.stop()
+menu()
 
 #st.header('Riesgo de :red[lesión (proximidad)]', divider="red")
 st.header(t("Análisis :red[grupal]"), divider="red")
-
-menu()
 
 # Load reference data
 jug_df = load_jugadoras_db()
