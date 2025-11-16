@@ -4,12 +4,12 @@ import re
 import numpy as np
 import requests
 import pandas as pd
-import datetime
 from urllib.parse import urlparse, urlunparse
 from src.i18n.i18n import t
 import unicodedata
 import datetime
 from dateutil.relativedelta import relativedelta  # pip install python-dateutil
+from datetime import date, timedelta
 
 def normalize_text(s):
     """Limpia texto eliminando tildes, espacios invisibles y normalizando Unicode."""
@@ -256,9 +256,6 @@ def to_date(value):
         return pd.to_datetime(value, errors="coerce").date()
     except Exception:
         return None
-
-import streamlit as st
-from datetime import date, timedelta
 
 def get_date_range_input(
     label: str,
