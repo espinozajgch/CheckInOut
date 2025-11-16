@@ -1,9 +1,4 @@
 import streamlit as st
-import json
-import random
-import datetime
-from pathlib import Path
-import pandas as pd
 
 import src.app_config.config as config
 config.init_config()

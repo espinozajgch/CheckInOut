@@ -5,7 +5,6 @@ import numpy as np
 import requests
 import pandas as pd
 from urllib.parse import urlparse, urlunparse
-from src.i18n.i18n import t
 import unicodedata
 import datetime
 from dateutil.relativedelta import relativedelta  # pip install python-dateutil

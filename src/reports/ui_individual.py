@@ -10,7 +10,6 @@ from .plots_individuales import (
     grafico_duracion_rpe,
     grafico_acwr,
     grafico_wellness,
-    grafico_riesgo_lesion,
     tabla_wellness_individual
 )
 
