@@ -1,11 +1,10 @@
 import streamlit as st
 import datetime
 import pandas as pd
-from .db_catalogs import load_catalog_list_db
-from .schema import DIAS_SEMANA
+from src.db.db_catalogs import load_catalog_list_db
+from src.schema import DIAS_SEMANA
 from src.i18n.i18n import t
-
-from src.styles import WELLNESS_COLOR_NORMAL, WELLNESS_COLOR_INVERTIDO
+from src.app_config.styles import WELLNESS_COLOR_NORMAL, WELLNESS_COLOR_INVERTIDO
 
 def checkin_form(record: dict, genero: str) -> tuple[dict, bool, str]:
     """Formulario de Check-in (Wellness pre-entrenamiento) con ICS y periodización táctica adaptativa."""

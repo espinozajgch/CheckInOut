@@ -1,5 +1,5 @@
 import pandas as pd
-from src.db_connection import get_connection
+from src.db.db_connection import get_connection
 import streamlit as st
 
 @st.cache_data(ttl=3600)  # cachea por 1 hora (ajústalo según tu frecuencia de actualización)

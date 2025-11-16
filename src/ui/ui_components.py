@@ -123,12 +123,85 @@ def selection_header(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd
 
     return df_filtrado, jugadora_opt, tipo, turno, start, end
 
-def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records_df: pd.DataFrame = None):
+# def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records_df: pd.DataFrame = None):
+
+#     col_tipo, col_turno, col_plantel, col_jugadora = st.columns([1.6, 1, 2, 2])
+
+#     with col_tipo:
+#         tipo = st.radio(t("Tipo de registro"), options=["Check-in", "Check-out"], horizontal=True, index=0)
+#     with col_turno:
+#         turno_traducido = st.selectbox(
+#             t("Turno"),
+#             list(OPCIONES_TURNO.values()),
+#             index=0
+#         )
+#         turno = next(k for k, v in OPCIONES_TURNO.items() if v == turno_traducido)
+
+#     with col_plantel:
+#         comp_options = comp_df.to_dict("records")
+#         comp_select = st.selectbox(
+#             t("Plantel"),
+#             options=comp_options,
+#             format_func=lambda x: x["nombre"] if isinstance(x, dict) else "",
+#             index=3,
+#             placeholder=t("Seleccione un plantel"),
+#         )
+#         codigo_comp = comp_select["codigo"]
+
+#     with col_jugadora:
+#         jug_df_filtrado = jug_df[jug_df["plantel"] == codigo_comp].copy()
+
+#         if records_df is not None and not records_df.empty:
+#             # Asegurar tipo string en tipo y turno
+#             records_df["tipo"] = records_df["tipo"].astype(str).str.lower()
+#             records_df["turno"] = records_df["turno"].astype(str).str.lower()
+
+#             #st.text(tipo.lower())
+#             # Filtrar registros existentes del tipo y turno seleccionados
+#             registros_filtrados = records_df[
+#                 (records_df["tipo"] == tipo.lower().replace("-", "")) &
+#                 (records_df["turno"] == turno.lower()) &
+#                 (records_df["fecha_sesion"] == datetime.date.today())
+#             ]
+
+#             # Jugadoras con registro de este tipo y turno
+#             jugadoras_con_registro = registros_filtrados["id_jugadora"].unique()
+
+#             # Excluirlas del selector
+#             jug_df_filtrado = jug_df_filtrado[
+#                 ~jug_df_filtrado["id_jugadora"].isin(jugadoras_con_registro)
+#             ]
+
+#         jugadoras_options = jug_df_filtrado.to_dict("records")
+
+#         jugadora_opt = st.selectbox(
+#             t("Jugadora"),
+#             options=jugadoras_options,
+#             format_func=lambda x: x["nombre_jugadora"] if isinstance(x, dict) else "",
+#             index=None,
+#             placeholder=t("Seleccione una Jugadora"),
+#         )
+        
+#     return jugadora_opt, tipo, turno
+
+def selection_header_registro(jug_df: pd.DataFrame, comp_df: pd.DataFrame, records_df: pd.DataFrame = None):
 
     col_tipo, col_turno, col_plantel, col_jugadora = st.columns([1.6, 1, 2, 2])
 
+    # ==========================================
+    # 1. Tipo de registro (Check-in / Check-out)
+    # ==========================================
     with col_tipo:
-        tipo = st.radio(t("Tipo de registro"), options=["Check-in", "Check-out"], horizontal=True, index=0)
+        tipo = st.radio(
+            t("Tipo de registro"),
+            options=["Check-in", "Check-out"],
+            horizontal=True,
+            index=0
+        )
+
+    # ======================
+    # 2. Turno seleccionado
+    # ======================
     with col_turno:
         turno_traducido = st.selectbox(
             t("Turno"),
@@ -137,6 +210,9 @@ def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records
         )
         turno = next(k for k, v in OPCIONES_TURNO.items() if v == turno_traducido)
 
+    # ======================
+    # 3. Plantel
+    # ======================
     with col_plantel:
         comp_options = comp_df.to_dict("records")
         comp_select = st.selectbox(
@@ -148,30 +224,61 @@ def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records
         )
         codigo_comp = comp_select["codigo"]
 
+    # ============================================================
+    # 4. Jugadoras (filtrado dinámico según reglas de negocio)
+    # ============================================================
     with col_jugadora:
         jug_df_filtrado = jug_df[jug_df["plantel"] == codigo_comp].copy()
 
         if records_df is not None and not records_df.empty:
-            # Asegurar tipo string en tipo y turno
+
+            # Convertir tipos a minúsculas
             records_df["tipo"] = records_df["tipo"].astype(str).str.lower()
             records_df["turno"] = records_df["turno"].astype(str).str.lower()
 
-            #st.text(tipo.lower())
-            # Filtrar registros existentes del tipo y turno seleccionados
-            registros_filtrados = records_df[
-                (records_df["tipo"] == tipo.lower().replace("-", "")) &
+            hoy = datetime.date.today()
+
+            # ---------------------------
+            # Jugadoras con CHECK-IN hoy
+            # ---------------------------
+            checkins = records_df[
+                (records_df["tipo"] == "checkin") &
                 (records_df["turno"] == turno.lower()) &
-                (records_df["fecha_sesion"] == datetime.date.today())
-            ]
+                (records_df["fecha_sesion"] == hoy)
+            ]["id_jugadora"].unique()
 
-            # Jugadoras con registro de este tipo y turno
-            jugadoras_con_registro = registros_filtrados["id_jugadora"].unique()
+            # ---------------------------
+            # Jugadoras con CHECK-OUT hoy
+            # ---------------------------
+            checkouts = records_df[
+                (records_df["tipo"] == "checkout") &
+                (records_df["turno"] == turno.lower()) &
+                (records_df["fecha_sesion"] == hoy)
+            ]["id_jugadora"].unique()
 
-            # Excluirlas del selector
-            jug_df_filtrado = jug_df_filtrado[
-                ~jug_df_filtrado["id_jugadora"].isin(jugadoras_con_registro)
-            ]
+            # ======================================================
+            # LÓGICA PRINCIPAL
+            # ======================================================
 
+            # ⭐ Check-in:
+            # Mostrar SOLO jugadoras sin registros (ni checkin ni checkout)
+            if tipo.lower() == "check-in".lower():
+                jugadoras_excluir = set(checkins).union(set(checkouts))
+                jug_df_filtrado = jug_df_filtrado[
+                    ~jug_df_filtrado["id_jugadora"].isin(jugadoras_excluir)
+                ]
+
+            # ⭐ Check-out:
+            # Mostrar SOLO jugadoras con check-in y sin check-out
+            else:
+                jugadoras_mostrar = set(checkins) - set(checkouts)
+                jug_df_filtrado = jug_df_filtrado[
+                    jug_df_filtrado["id_jugadora"].isin(jugadoras_mostrar)
+                ]
+
+        # -----------------------------
+        # Selector final de jugadora
+        # -----------------------------
         jugadoras_options = jug_df_filtrado.to_dict("records")
 
         jugadora_opt = st.selectbox(
@@ -181,8 +288,9 @@ def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records
             index=None,
             placeholder=t("Seleccione una Jugadora"),
         )
-        
+
     return jugadora_opt, tipo, turno
+
 
 def preview_record(record: dict) -> None:
     #st.subheader("Previsualización")

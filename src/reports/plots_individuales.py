@@ -5,7 +5,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import altair as alt
 from src.i18n.i18n import t
-from src.styles import get_color_wellness, BRAND_PRIMARY, BRAND_TEXT
+from src.app_config.styles import get_color_wellness, BRAND_PRIMARY, BRAND_TEXT
 
 # 1️⃣ RPE y UA -------------------------------------------------------
 def grafico_rpe_ua(df: pd.DataFrame):

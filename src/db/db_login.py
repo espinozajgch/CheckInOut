@@ -1,6 +1,6 @@
 import pandas as pd
 import streamlit as st
-from src.db_connection import get_connection
+from src.db.db_connection import get_connection
 
 def load_user_from_db(email: str):
     """

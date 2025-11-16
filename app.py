@@ -3,10 +3,10 @@ import streamlit as st
 from src.auth_system.auth_core import init_app_state, validate_login
 from src.auth_system.auth_ui import login_view, menu
 
-from src.db_records import get_records_wellness_db, load_jugadoras_db
+from src.db.db_records import get_records_db, load_jugadoras_db
 
 from src.util import clean_df, data_format
-from src.ui_app import (
+from src.ui.ui_app import (
     get_default_period,
     filter_df_by_period,
     calc_metric_block,
@@ -19,7 +19,7 @@ from src.ui_app import (
 )
 
 from src.i18n.i18n import t
-import src.config as config
+import src.app_config.config as config
 config.init_config()
 
 # ============================================================
@@ -38,7 +38,7 @@ st.header(t("Resumen de :red[Wellness] (1er Equipo)"), divider="red")
 # ============================================================
 # 📦 CARGA DE DATOS
 # ============================================================
-df = get_records_wellness_db()
+df = get_records_db()
 
 if df.empty:
     st.warning(t("No hay registros de Wellness o RPE disponibles."))

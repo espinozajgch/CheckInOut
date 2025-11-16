@@ -4,9 +4,9 @@ import json
 import datetime
 
 from src.schema import MAP_POSICIONES
-from src.db_connection import get_connection
+from src.db.db_connection import get_connection
 
-def get_records_wellness_db(as_df: bool = True):
+def get_records_db(as_df: bool = True):
     """
     Carga todos los registros de la tabla 'wellness' desde la base de datos MySQL,
     uniendo los nombres descriptivos de los catálogos de estímulos.
@@ -61,7 +61,7 @@ def get_records_wellness_db(as_df: bool = True):
                 ON w.id_tipo_estimulo = ec.id
             LEFT JOIN estimulos_readaptacion AS er 
                 ON w.id_tipo_readaptacion = er.id
-            WHERE f.genero = 'F'
+            WHERE f.genero = 'F' and w.estatus_id <= 2
             ORDER BY w.fecha_hora_registro DESC;
         """
 
@@ -162,6 +162,7 @@ def get_record_for_player_day_turno_db(id_jugadora: str, fecha_sesion: str, turn
                 AND fecha_sesion = %s
                 AND turno = %s
                 AND usuario = %s
+                AND estatus_id <= 2
                 LIMIT 1;
             """
             usuario = rol_actual
@@ -173,6 +174,7 @@ def get_record_for_player_day_turno_db(id_jugadora: str, fecha_sesion: str, turn
                 AND fecha_sesion = %s
                 AND turno = %s
                 AND usuario != %s
+                AND estatus_id <= 2
                 LIMIT 1;
             """
 
@@ -204,7 +206,7 @@ def get_record_for_player_day_turno_db(id_jugadora: str, fecha_sesion: str, turn
             cursor.close()
         if conn:
             conn.close()
-
+          
 def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
     """
     Inserta o actualiza un registro de wellness en la base de datos MySQL.
@@ -221,6 +223,7 @@ def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
         return False
 
     try:
+        usuario_actual = st.session_state["auth"]["username"]
         cursor = conn.cursor(dictionary=True)
 
         # ============================================================
@@ -240,6 +243,7 @@ def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
             WHERE id_jugadora = %s
               AND fecha_sesion = %s
               AND turno = %s
+              AND estatus_id <= 2
             LIMIT 1;
         """
         cursor.execute(
@@ -265,15 +269,16 @@ def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
                         minutos_sesion = %(minutos_sesion)s,
                         rpe = %(rpe)s,
                         ua = %(ua)s,
-                        fecha_hora_registro = CURRENT_TIMESTAMP,
-                        usuario = %(usuario)s
+                        modified_by = %(modified_by)s,
+                        estatus_id = 2,
+                        updated_at = NOW()
                     WHERE id = %(id)s;
                 """
                 params = {
                     "minutos_sesion": record.get("minutos_sesion"),
                     "rpe": record.get("rpe"),
                     "ua": record.get("ua"),
-                    "usuario": record.get("usuario"),
+                    "modified_by": usuario_actual,
                     "id": existing["id"],
                 }
 
@@ -364,156 +369,6 @@ def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
             cursor.close()
         if conn:
             conn.close()
-            
-def get_ultima_lesion_id_por_jugadora(id_jugadora: str) -> str | None:
-    """
-    Devuelve el ID de la última lesión registrada de una jugadora.
-    Si no tiene lesiones, retorna None.
-    """
-
-    conn = get_connection()
-    if not conn:
-        st.error(":material/warning: No se pudo conectar a la base de datos.")
-        return None
-
-    try:
-        query = """
-        SELECT id_lesion
-        FROM lesiones
-        WHERE id_jugadora = %s
-        ORDER BY COALESCE(fecha_hora_registro, fecha_lesion) DESC
-        LIMIT 1;
-        """
-
-        cursor = conn.cursor()
-        cursor.execute(query, (id_jugadora,))
-        result = cursor.fetchone()
-
-        return result[0] if result else None
-
-    except Exception as e:
-        st.error(f":material/warning: Error al obtener el ID de la última lesión: {e}")
-        return None
-
-    finally:
-        if conn:
-            conn.close()
-
-def get_records_plus_players_db(plantel: str = None) -> pd.DataFrame:
-    """
-    Devuelve todas las lesiones junto con los datos de las jugadoras.
-    Si no hay registros, devuelve un DataFrame vacío.
-
-    Combina:
-    - lesiones
-    - futbolistas (nombre, apellido, competicion)
-    - informacion_futbolistas (posicion, altura, peso)
-    """
-
-    conn = get_connection()
-    if not conn:
-        st.error(":material/warning: No se pudo conectar a la base de datos.")
-        return pd.DataFrame()
-
-    try:
-        query = """
-        SELECT 
-            l.id AS id_registro,
-            l.id_lesion,
-            l.id_jugadora,
-            f.nombre,
-            f.apellido,
-            f.competicion AS plantel,
-            i.posicion,
-            l.fecha_lesion,
-            l.estado_lesion,
-            l.diagnostico,
-            l.dias_baja_estimado,
-            l.impacto_dias_baja_estimado,
-            l.mecanismo_id,
-            m.nombre AS mecanismo,
-            t.nombre AS tipo_lesion,
-            te.nombre AS tipo_especifico,
-            l.lugar_id,
-            lu.nombre AS lugar,
-            l.segmento_id,
-            s.nombre AS segmento,
-            l.zona_cuerpo_id,
-            z.nombre AS zona_cuerpo,
-            l.zona_especifica_id,
-            za.nombre AS zona_especifica,
-            l.lateralidad,
-            l.es_recidiva,
-            l.tipo_recidiva,
-            l.tipo_tratamiento,
-            l.personal_reporta,
-            l.fecha_alta_diagnostico,
-            l.fecha_alta_medica,
-            l.fecha_alta_deportiva,
-            l.descripcion,
-            l.evolucion,
-            l.fecha_hora_registro,
-            l.usuario
-        FROM lesiones l
-        LEFT JOIN futbolistas f ON l.id_jugadora = f.identificacion
-        LEFT JOIN informacion_futbolistas i ON l.id_jugadora = i.identificacion
-        LEFT JOIN lugares lu ON l.lugar_id = lu.id
-        LEFT JOIN mecanismos m ON l.mecanismo_id = m.id
-        LEFT JOIN tipo_lesion t ON l.tipo_lesion_id = t.id
-        LEFT JOIN tipo_especifico_lesion te ON l.tipo_especifico_id = te.id
-        LEFT JOIN segmentos_corporales s ON l.segmento_id = s.id
-        LEFT JOIN zonas_segmento z ON l.zona_cuerpo_id = z.id
-        LEFT JOIN zonas_anatomicas za ON l.zona_especifica_id = za.id
-        WHERE f.genero = 'F'
-        ORDER BY l.fecha_hora_registro DESC;
-        """
-
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute(query)
-        rows = cursor.fetchall()
-        df = pd.DataFrame(rows)
-        cursor.close()
-
-        if not rows:
-            st.info(":material/info: No existen registros de lesiones en la base de datos.")
-            st.stop()
-
-        # Crear columna nombre_jugadora
-        df["nombre_jugadora"] = (
-            df["nombre"].fillna("") + " " + df["apellido"].fillna("")
-        ).str.strip()
-
-        df = df.drop(columns=["nombre", "apellido"], errors="ignore")
-
-        # Reordenar columnas
-        columnas = df.columns.tolist()
-        if "id_jugadora" in columnas and "nombre_jugadora" in columnas:
-            idx = columnas.index("id_jugadora") + 1
-            columnas.insert(idx, columnas.pop(columnas.index("nombre_jugadora")))
-        if "posicion" in columnas and "plantel" in columnas:
-            idx = columnas.index("posicion") + 1
-            columnas.insert(idx, columnas.pop(columnas.index("plantel")))
-
-        df = df[columnas]
-        df["posicion"] = df["posicion"].map(MAP_POSICIONES).fillna(df["posicion"])
-        df["sesiones"] = df["evolucion"].apply(contar_sesiones)
-        
-        # Filtrar por plantel si se indica
-        if plantel:
-            df = df[df["plantel"] == plantel]
-
-        if st.session_state["auth"]["rol"].lower() == "developer":
-            df = df[df["usuario"]=="developer"]
-        else:
-            df = df[df["usuario"]!="developer"]
-        
-        return df
-
-    except Exception as e:
-        st.error(f":material/warning: Error al cargar registros y jugadoras: {e}")
-        return pd.DataFrame()
-    finally:
-        conn.close()
 
 @st.cache_data(ttl=3600)  # cachea por 1 hora (ajústalo según tu frecuencia de actualización)
 def load_jugadoras_db() -> pd.DataFrame | None:
@@ -631,10 +486,41 @@ def load_competiciones_db() -> tuple[pd.DataFrame | None, str | None]:
     finally:
         conn.close()
 
+# def delete_wellness(ids: list[int]) -> tuple[bool, str]:
+#     """
+#     Elimina múltiples wellness desde la base de datos.
+
+#     Parámetros:
+#         ids (list[int]): lista de IDs de wellness a eliminar.
+
+#     Retorna:
+#         (bool, str): (éxito, mensaje)
+#     """
+#     if not ids:
+#         return False, "No se proporcionaron IDs de wellness."
+
+#     try:
+#         conn = get_connection()
+#         cursor = conn.cursor(dictionary=True)
+
+#         # Construir la query dinámica con placeholders
+#         query = f"DELETE FROM wellness WHERE id IN ({','.join(['%s'] * len(ids))})"
+#         cursor.execute(query, tuple(ids))
+#         conn.commit()
+
+#         cursor.close()
+#         conn.close()
+
+#         return True, f"✅ Se eliminaron {cursor.rowcount} registro(s) correctamente."
+
+#     except Exception as e:
+#         st.error(f":material/warning: Error al eliminar los registros: {e}")
+#         return False, f":material/warning: Error al eliminar los registros: {e}"
+
 def delete_wellness(ids: list[int]) -> tuple[bool, str]:
     """
-    Elimina múltiples wellness desde la base de datos.
-
+    Soft-delete: marca registros de wellness como eliminados (estatus_id = 3).
+    
     Parámetros:
         ids (list[int]): lista de IDs de wellness a eliminar.
 
@@ -648,15 +534,31 @@ def delete_wellness(ids: list[int]) -> tuple[bool, str]:
         conn = get_connection()
         cursor = conn.cursor(dictionary=True)
 
-        # Construir la query dinámica con placeholders
-        query = f"DELETE FROM wellness WHERE id IN ({','.join(['%s'] * len(ids))})"
-        cursor.execute(query, tuple(ids))
+        # Datos de auditoría
+        deleted_by = st.session_state["auth"]["username"]
+        
+        # Construir query dinámica con placeholders
+        placeholders = ",".join(["%s"] * len(ids))
+        
+        query = f"""
+            UPDATE wellness
+            SET 
+                estatus_id = 3,
+                deleted_at = NOW(),
+                deleted_by = %s
+            WHERE id IN ({placeholders})
+        """
+
+        # Ejecutar query (primero deleted_by, luego ids)
+        cursor.execute(query, tuple([deleted_by] + ids))
         conn.commit()
+
+        afectados = cursor.rowcount
 
         cursor.close()
         conn.close()
 
-        return True, f"✅ Se eliminaron {cursor.rowcount} registro(s) correctamente."
+        return True, f"Se eliminaron {afectados} registro(s) correctamente."
 
     except Exception as e:
         st.error(f":material/warning: Error al eliminar los registros: {e}")

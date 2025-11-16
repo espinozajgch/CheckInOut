@@ -1,13 +1,13 @@
 import streamlit as st
-import src.config as config
+import src.app_config.config as config
 
 
 from src.auth_system.auth_core import init_app_state, validate_login
 from src.auth_system.auth_ui import login_view, menu
 from src.i18n.i18n import t
-from src.ui_components import selection_header
+from src.ui.ui_components import selection_header
 from src.reports.ui_individual import metricas, graficos_individuales, calcular_semaforo_riesgo, player_block_dux
-from src.db_records import get_records_wellness_db, load_jugadoras_db, load_competiciones_db
+from src.db.db_records import get_records_db, load_jugadoras_db, load_competiciones_db
 
 config.init_config()
 init_app_state()
@@ -25,7 +25,7 @@ st.header(t("Análisis :red[individual]"), divider="red")
 # Load reference data
 jug_df = load_jugadoras_db()
 comp_df = load_competiciones_db()
-df = get_records_wellness_db()
+df = get_records_db()
 
 df_filtrado, jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, df, modo="reporte")
 

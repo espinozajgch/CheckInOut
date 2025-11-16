@@ -2,7 +2,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import src.styles as styles
+from src.app_config import styles
 from src.i18n.i18n import t
 
 # ============================================================

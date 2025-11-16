@@ -7,10 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2025-11-16
+
+### Added
+- Reportes
+- Conexión a base de datos.
+- Traducciones 
+
+## [2.0.0] - 2025-11-16
+
+### Added
+- Visualización de registros.
+- Cookies y Variables de sesión.
+
+## [1.0.0] - 2025-11-16
+
 ### Added
 - Menu e inicio de sesión.
 - Registro de check-in y check-out.
-- Visualización de registros.
-- Cookies y Login
-- Reportes
-- Traducciones

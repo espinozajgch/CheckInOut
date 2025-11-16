@@ -1,5 +1,5 @@
 import streamlit as st
-from src.db_login import load_user_from_db
+from src.db.db_login import load_user_from_db
 from src.auth_system.auth_core import logout, validate_access
 from src.util import centered_text
 from src.i18n.i18n import t, language_selector
