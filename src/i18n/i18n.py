@@ -30,7 +30,7 @@ def t(text: str) -> str:
 
 def language_selector(label: str = ":material/language: Idioma / Language", default: str = "es"):
     """Selector de idioma persistente en la barra lateral."""
-    languages = {"Español": "es", "English": "en", "Português": "pt"}
+    languages = {"Español": "es", "English": "en", "Português": "pt", "Français": "fr"}
 
     if "lang" not in st.session_state:
         st.session_state["lang"] = default
