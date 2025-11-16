@@ -160,7 +160,8 @@ def selection_header_registro(jug_df: pd.DataFrame,comp_df: pd.DataFrame,records
             # Filtrar registros existentes del tipo y turno seleccionados
             registros_filtrados = records_df[
                 (records_df["tipo"] == tipo.lower().replace("-", "")) &
-                (records_df["turno"] == turno.lower())
+                (records_df["turno"] == turno.lower()) &
+                (records_df["fecha_sesion"] == datetime.date.today())
             ]
 
             # Jugadoras con registro de este tipo y turno
