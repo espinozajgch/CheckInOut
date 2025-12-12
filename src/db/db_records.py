@@ -343,13 +343,13 @@ def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
             LIMIT 1;
         """
 
-        params = (
-            record.get("id_jugadora"),
-            fecha_sesion,
-            record.get("turno")
-        )
-
         if st.session_state["auth"]["rol"].lower() == "developer":
+
+            params = (
+                record.get("id_jugadora"),
+                fecha_sesion,
+                record.get("turno")
+            )
             debug_query = check_query % tuple(repr(p) for p in params)
             st.write(f"QUERY DEBUG: {debug_query}")
         
