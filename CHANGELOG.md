@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2025-12-13
+
+### Added
+- Test unitarios
+- Se añade bootstrap.py para reconocar la carpeta src/
+
 ## [5.0.0] - 2025-12-08
 
 ### Added

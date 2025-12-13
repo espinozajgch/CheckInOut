@@ -2,12 +2,12 @@ import json
 import streamlit as st
 import datetime
 import pandas as pd
-from src.util.io_files import load_catalog_list
-from src.db.db_catalogs import load_catalog_list_db
-from src.schema import DIAS_SEMANA
-from src.i18n.i18n import t
-from src.app_config.styles import WELLNESS_COLOR_NORMAL, WELLNESS_COLOR_INVERTIDO
-from src.util.key_builder import KeyBuilder
+from util.io_files import load_catalog_list
+from db.db_catalogs import load_catalog_list_db
+from schema import DIAS_SEMANA
+from i18n.i18n import t
+from app_config.styles import WELLNESS_COLOR_NORMAL, WELLNESS_COLOR_INVERTIDO
+from util.key_builder import KeyBuilder
 
 def validate_checkin(record: dict) -> tuple[bool, str]:
     # Required 1..5

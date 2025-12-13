@@ -6,8 +6,8 @@ import bcrypt
 import jwt
 import streamlit as st
 
-from src.auth_system import auth_config
-from src.auth_system.cookie_manager import cookie_set, cookie_get, cookie_delete
+from auth_system import auth_config
+from auth_system.cookie_manager import cookie_set, cookie_get, cookie_delete
 
 # ======================================================
 # Helpers internos de estado
@@ -104,7 +104,8 @@ def bootstrap_auth_from_cookie():
         st.session_state["_auth_cookie_checked"] = False
 
         #st.text("Logout completado.")
-        return
+        #return
+        st.switch_page("app.py")
 
     # =====================================================
     # (B) FLUJO NORMAL DE BOOTSTRAP

@@ -1,13 +1,13 @@
 import streamlit as st
-import src.app_config.config as config
+import app_config.config as config
 
-from src.i18n.i18n import t
+from i18n.i18n import t
 
 config.init_config()
 
-from src.ui.ui_components import selection_header
-from src.reports.ui_grupal import group_dashboard
-from src.db.db_records import get_records_db, load_jugadoras_db, load_competiciones_db
+from ui.ui_components import selection_header
+from reports.ui_grupal import group_dashboard
+from db.db_records import get_records_db, load_jugadoras_db, load_competiciones_db
 
 st.header(t("Análisis :red[grupal]"), divider="red")
 

@@ -1,12 +1,12 @@
 import streamlit as st
 import time
 
-from src.schema import new_base_record
-from src.ui.check_in_ui import checkin_form
-from src.ui.check_out_ui import checkout_form
-from src.i18n.i18n import t
-from src.ui.ui_components import preview_record
-from src.db.db_records import upsert_wellness_record_db, get_record_for_player_day_turno_db
+from schema import new_base_record
+from ui.check_in_ui import checkin_form
+from ui.check_out_ui import checkout_form
+from i18n.i18n import t
+from ui.ui_components import preview_record
+from db.db_records import upsert_wellness_record_db, get_record_for_player_day_turno_db
 
 def wellness_form(jugadora, tipo, turno):
     """

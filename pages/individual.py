@@ -1,10 +1,10 @@
 import streamlit as st
-import src.app_config.config as config
+import app_config.config as config
 
-from src.i18n.i18n import t
-from src.ui.ui_components import selection_header
-from src.reports.ui_individual import metricas, graficos_individuales, calcular_semaforo_riesgo, player_block_dux
-from src.db.db_records import get_records_db, load_jugadoras_db, load_competiciones_db
+from i18n.i18n import t
+from ui.ui_components import selection_header
+from reports.ui_individual import metricas, graficos_individuales, calcular_semaforo_riesgo, player_block_dux
+from db.db_records import get_records_db, load_jugadoras_db, load_competiciones_db
 
 config.init_config()
 st.header(t("Análisis :red[individual]"), divider="red")

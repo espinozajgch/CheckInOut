@@ -1,13 +1,13 @@
 import streamlit as st
-import src.app_config.config as config
+import app_config.config as config
 config.init_config()
 
-from src.db.db_catalogs import load_catalog_list_db
-from src.ui.ui_components import selection_header, filtrar_registros
-from src.i18n.i18n import t
-from src.ui.absents_ui import absents_summary
+from db.db_catalogs import load_catalog_list_db
+from ui.ui_components import selection_header, filtrar_registros
+from i18n.i18n import t
+from ui.absents_ui import absents_summary
 
-from src.db.db_records import (
+from db.db_records import (
     delete_wellness, load_jugadoras_db, load_competiciones_db, get_records_db, load_ausencias_activas_db)
 
 if st.session_state["auth"]["rol"].lower() not in ["admin", "developer"]:

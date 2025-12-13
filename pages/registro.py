@@ -1,16 +1,18 @@
+#from bootstrap import *
+
 import streamlit as st
-from src.app_config import config
+from app_config import config
 config.init_config()
 
-from src.auth_system.auth_core import init_app_state, validate_login
-from src.i18n.i18n import t
-from src.db.db_records import (load_jugadoras_db, load_competiciones_db, 
+from auth_system.auth_core import init_app_state, validate_login
+from i18n.i18n import t
+from db.db_records import (load_jugadoras_db, load_competiciones_db, 
                                get_records_db, load_ausencias_activas_db)
-from src.db.db_catalogs import load_catalog_list_db
-from src.ui.absents_ui import absents_form, filtrar_jugadoras_ausentes
+from db.db_catalogs import load_catalog_list_db
+from ui.absents_ui import absents_form, filtrar_jugadoras_ausentes
 
-from src.ui.ui_components import selection_header_registro
-from src.ui.wellness_ui import wellness_form
+from ui.ui_components import selection_header_registro
+from ui.wellness_ui import wellness_form
 
 # Authentication gate
 init_app_state()

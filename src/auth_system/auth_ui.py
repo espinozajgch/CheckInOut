@@ -1,8 +1,8 @@
 import streamlit as st
-from src.db.db_login import load_user_from_db
-from src.auth_system.auth_core import logout, validate_access
-from src.util.util import right_caption, set_background_image_local
-from src.i18n.i18n import t, language_selector
+from db.db_login import load_user_from_db
+from auth_system.auth_core import logout, validate_access
+from util.util import right_caption, set_background_image_local
+from i18n.i18n import t, language_selector
 
 def login_view() -> None:
     """Renderiza el formulario de inicio de sesión."""
@@ -18,7 +18,7 @@ def login_view() -> None:
             </style>
         """, unsafe_allow_html=True)
 
-        st.markdown("<br><br>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
         st.image("assets/images/banner.png")
 
         with st.form("login_form", clear_on_submit=False):

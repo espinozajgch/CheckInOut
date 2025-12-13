@@ -1,9 +1,9 @@
 import streamlit as st
 
-from src.db.db_records import get_records_db, load_jugadoras_db, load_ausencias_activas_db, load_competiciones_db
-from src.ui.absents_ui import filtrar_jugadoras_ausentes
-from src.util.util import clean_df, data_format
-from src.ui.ui_app import (
+from db.db_records import get_records_db, load_jugadoras_db, load_ausencias_activas_db, load_competiciones_db
+from ui.absents_ui import filtrar_jugadoras_ausentes
+from util.util import clean_df, data_format
+from ui.ui_app import (
     get_default_period,
     filter_df_by_period,
     calc_metric_block,
@@ -15,8 +15,8 @@ from src.ui.ui_app import (
     get_pendientes_check
 )
 
-from src.i18n.i18n import t
-import src.app_config.config as config
+from i18n.i18n import t
+import app_config.config as config
 config.init_config()
 
 st.header(t("Resumen de :red[Wellness] (1er Equipo)"), divider="red")

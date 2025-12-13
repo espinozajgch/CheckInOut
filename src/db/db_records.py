@@ -3,9 +3,9 @@ import pandas as pd
 import json
 import datetime
 
-from src.schema import MAP_POSICIONES
-from src.db.db_connection import get_connection
-from src.db.db_catalogs import load_catalog_list_db
+from schema import MAP_POSICIONES
+from db.db_connection import get_connection
+from db.db_catalogs import load_catalog_list_db
 
 #@st.cache_data(ttl=3600) 
 def load_ausencias_activas_db(activas: bool = True):
@@ -343,15 +343,15 @@ def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
             LIMIT 1;
         """
 
-        # if st.session_state["auth"]["rol"].lower() == "developer":
+        if st.session_state["auth"]["rol"].lower() == "developer":
 
-        #     params = (
-        #         record.get("id_jugadora"),
-        #         fecha_sesion,
-        #         record.get("turno")
-        #     )
-        #     debug_query = check_query % tuple(repr(p) for p in params)
-        #     st.write(f"QUERY DEBUG: {debug_query}")
+            params = (
+                record.get("id_jugadora"),
+                fecha_sesion,
+                record.get("turno")
+            )
+            debug_query = check_query % tuple(repr(p) for p in params)
+            st.write(f"QUERY DEBUG: {debug_query}")
         
         cursor.execute(
             check_query,
@@ -421,10 +421,10 @@ def upsert_wellness_record_db(record: dict, modo: str = "checkin") -> bool:
                 params["id"] = existing["id"]
 
             # --- Logging modo developer ---
-            # if st.session_state["auth"]["rol"].lower() == "developer":
-            #     st.write(f"🟡 Query UPDATE ejecutada (modo={modo.upper()}):")
-            #     st.code(update_query, language="sql")
-            #     st.json(params)
+            if st.session_state["auth"]["rol"].lower() == "developer":
+                st.write(f"🟡 Query UPDATE ejecutada (modo={modo.upper()}):")
+                st.code(update_query, language="sql")
+                st.json(params)
 
             cursor.execute(update_query, params)
             conn.commit()

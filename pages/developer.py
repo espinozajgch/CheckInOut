@@ -5,9 +5,9 @@ import bcrypt
 #    INIT CONFIG & AUTH
 # ============================
 
-from src.i18n.i18n import t
-from src.auth_system.auth_core import init_app_state, validate_login
-import src.app_config.config as config
+from i18n.i18n import t
+from auth_system.auth_core import init_app_state, validate_login
+import app_config.config as config
 
 config.init_config()
 init_app_state()

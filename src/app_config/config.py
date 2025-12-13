@@ -1,6 +1,6 @@
 import streamlit as st
-from src.auth_system.auth_core import bootstrap_auth_from_cookie, init_app_state, validate_login
-from src.auth_system.auth_ui import login_view, menu
+from auth_system.auth_core import bootstrap_auth_from_cookie, init_app_state, validate_login
+from auth_system.auth_ui import login_view, menu
 
 def init_config():
     # Streamlit page config
