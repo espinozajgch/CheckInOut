@@ -1,19 +1,22 @@
-import streamlit as st
-import app_config.config as config
 
-from i18n.i18n import t
+import streamlit as st
+import modules.app_config.config as config
+
+from modules.i18n.i18n import t
 
 config.init_config()
 
-from ui.ui_components import selection_header
-from reports.ui_grupal import group_dashboard
-from db.db_records import get_records_db, load_jugadoras_db, load_competiciones_db
+from modules.ui.ui_components import selection_header
+from modules.reports.ui_grupal import group_dashboard
+from modules.db.db_records import get_records_db
+from modules.db.db_players import load_players_db
+from modules.db.db_competitions import load_competitions_db
 
 st.header(t("Análisis :red[grupal]"), divider="red")
 
 # Load reference data
-jug_df = load_jugadoras_db()
-comp_df = load_competiciones_db()
+jug_df = load_players_db()
+comp_df = load_competitions_db()
 wellness_df = get_records_db()
 
 #st.dataframe(wellness_df, hide_index=True)    

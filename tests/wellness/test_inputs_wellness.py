@@ -1,5 +1,5 @@
-from ui.check_in_ui import validate_checkin
-from ui.check_out_ui import validate_checkout
+from modules.ui.check_in_ui import validate_checkin
+from modules.ui.check_out_ui import validate_checkout
 
 # ==============================
 # ✅ TESTS CHECK-IN (validate_checkin)

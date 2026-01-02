@@ -1,4 +1,4 @@
-from ui.check_out_ui import validate_checkout
+from modules.ui.check_out_ui import validate_checkout
 
 def test_rpe_valid_ok():
     record = {

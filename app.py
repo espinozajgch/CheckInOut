@@ -1,9 +1,12 @@
 import streamlit as st
 
-from db.db_records import get_records_db, load_jugadoras_db, load_ausencias_activas_db, load_competiciones_db
-from ui.absents_ui import filtrar_jugadoras_ausentes
-from util.util import clean_df, data_format
-from ui.ui_app import (
+from modules.db.db_absences import load_active_absences_db
+from modules.db.db_competitions import load_competitions_db
+from modules.db.db_players import load_players_db
+from modules.db.db_records import get_records_db
+from modules.ui.absents_ui import filtrar_jugadoras_ausentes
+from modules.util.util import clean_df, data_format
+from modules.ui.ui_app import (
     get_default_period,
     filter_df_by_period,
     calc_metric_block,
@@ -15,11 +18,11 @@ from ui.ui_app import (
     get_pendientes_check
 )
 
-from i18n.i18n import t
-import app_config.config as config
+from modules.i18n.i18n import t
+import modules.app_config.config as config
 config.init_config()
 
-st.header(t("Resumen de :red[Wellness] (1er Equipo)"), divider="red")
+st.header(t("Resumen de :red[Wellness] [1er Equipo]"), divider="red")
 #st.session_state.clear()
 # ============================================================
 # 📦 CARGA DE DATOS
@@ -31,11 +34,11 @@ if df.empty:
     st.stop()
 
 df = data_format(df)
-jug_df = load_jugadoras_db()
+jug_df = load_players_db()
 #jug_df = jug_df[jug_df["plantel"] == "1FF"]
    
-comp_df = load_competiciones_db()
-ausencias_df = load_ausencias_activas_db()
+comp_df = load_competitions_db()
+ausencias_df = load_active_absences_db()
 
 # ============================================================
 # INTERFAZ PRINCIPAL

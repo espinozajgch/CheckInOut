@@ -1,14 +1,15 @@
 import streamlit as st
-import app_config.config as config
+import modules.app_config.config as config
 config.init_config()
 
-from db.db_catalogs import load_catalog_list_db
-from ui.ui_components import selection_header, filtrar_registros
-from i18n.i18n import t
-from ui.absents_ui import absents_summary
-
-from db.db_records import (
-    delete_wellness, load_jugadoras_db, load_competiciones_db, get_records_db, load_ausencias_activas_db)
+from modules.db.db_absences import load_active_absences_db
+from modules.db.db_catalogs import load_catalog_list_db
+from modules.ui.ui_components import selection_header, filtrar_registros
+from modules.i18n.i18n import t
+from modules.ui.absents_ui import absents_summary
+from modules.db.db_competitions import load_competitions_db
+from modules.db.db_players import load_players_db
+from modules.db.db_records import delete_record, get_records_db
 
 if st.session_state["auth"]["rol"].lower() not in ["admin", "developer"]:
     st.switch_page("app.py")
@@ -16,11 +17,78 @@ if st.session_state["auth"]["rol"].lower() not in ["admin", "developer"]:
 st.header(t("Administrador de :red[registros]"), divider="red")
 
 # Load reference data
-jug_df = load_jugadoras_db()
-comp_df = load_competiciones_db()
+jug_df = load_players_db()
+comp_df = load_competitions_db()
 wellness_df = get_records_db()
 tipo_ausencia_df = load_catalog_list_db("tipo_ausencia", as_df=True)
-ausencias_df = load_ausencias_activas_db(activas=False)
+ausencias_df = load_active_absences_db(activas=False)
+
+@st.dialog(t("Eliminar registros filtrados"), width="small")
+def dialog_eliminar_todos_filtrados(ids_todos):
+    st.error(
+        t("Esta acción eliminará TODOS los registros mostrados en la tabla.")
+    )
+
+    st.write(
+        t("Para confirmar, escriba la palabra") + " **eliminar**"
+    )
+
+    confirm_text = st.text_input(
+        t("Confirmación"),
+        placeholder="eliminar"
+    )
+
+    _, col2, col3 = st.columns([1.8, 1, 1])
+
+    with col2:
+        if st.button(t(":material/cancel: Cancelar")):
+            st.rerun()
+
+    with col3:
+        if confirm_text.strip().lower() == "eliminar":
+            if st.button(
+                t(":material/delete: Eliminar todos"),
+                type="primary"
+            ):
+                deleted_by = st.session_state["auth"]["name"].lower()
+                exito, mensaje = delete_record(ids_todos, deleted_by)
+
+                if exito:
+                    st.session_state["reload_flag"] = True
+                    st.session_state["admin_delete_all"] = True
+                else:
+                    st.session_state["save_error"] = mensaje
+
+                st.rerun()
+        else:
+            st.button(
+                t(":material/delete: Eliminar todos"),
+                disabled=True
+            )
+
+
+# ===============================
+# 🔸 Diálogo de confirmación
+# ===============================
+@st.dialog(t("Confirmar"), width="small")
+def dialog_eliminar():
+    st.warning(f"¿{t('Está seguro de eliminar')} {len(ids_seleccionados)} {t('elemento')}(s)?")
+
+    _, col2, col3 = st.columns([1.8, 1, 1])
+    with col2:
+        if st.button(t(":material/cancel: Cancelar")):
+            st.rerun()
+    with col3:
+        if st.button(t(":material/delete: Eliminar"), type="primary"):
+            deleted_by = st.session_state["auth"]["name"].lower()
+            exito, mensaje = delete_record(ids_seleccionados, deleted_by)
+
+            if exito:
+                # Marcar para recarga
+                st.session_state["reload_flag"] = True
+
+            st.rerun()
+
 
 records, jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, wellness_df, modo="reporte")
 
@@ -57,32 +125,13 @@ with tab1:
     csv_data = records.to_csv(index=False).encode("utf-8")
 
     exito, mensaje = False, ""
-    # ===============================
-    # 🔸 Diálogo de confirmación
-    # ===============================
-    @st.dialog(t("Confirmar"), width="small")
-    def dialog_eliminar():
-        st.warning(f"¿{t('Está seguro de eliminar')} {len(ids_seleccionados)} {t('elemento')}(s)?")
-
-        _, col2, col3 = st.columns([1.8, 1, 1])
-        with col2:
-            if st.button(t(":material/cancel: Cancelar")):
-                st.rerun()
-        with col3:
-            if st.button(t(":material/delete: Eliminar"), type="primary"):
-                exito, mensaje = delete_wellness(ids_seleccionados)
-
-                if exito:
-                    # Marcar para recarga
-                    st.session_state["reload_flag"] = True
-
-                st.rerun()
+    
 
     if st.session_state.get("reload_flag") and exito:     
         st.success(mensaje)
         st.session_state["reload_flag"] = False
 
-    col1, col2, col3, _, _ = st.columns([1.6, 1.8, 2, 1, 1])
+    col1, col2, col3, col4, _ = st.columns([1.6, 1.8, 2, 1, 1])
     with col1:
         # --- Botón principal para abrir el diálogo ---
         if st.button(t(":material/delete: Eliminar seleccionados"), disabled=len(ids_seleccionados) == 0):
@@ -103,6 +152,11 @@ with tab1:
                     label=t(":material/download: Descargar registros en JSON"),
                     data=json_bytes, file_name="registros_wellness.json", mime="application/json"
                 )
+        with col4:
+            if st.button(
+                t(":material/delete_forever: Eliminar Todos los registros"),
+                disabled=records.empty):
+                dialog_eliminar_todos_filtrados(records["id"].tolist())
 
 with tab2:
 

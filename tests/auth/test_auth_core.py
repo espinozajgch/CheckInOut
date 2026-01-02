@@ -13,9 +13,8 @@ class MockStreamlit:
 st = MockStreamlit()
 
 # Importamos el módulo real y sustituimos st
-import auth_system.auth_core as auth_core
+import modules.auth_system.auth_core as auth_core
 auth_core.st = st
-
 
 def test_init_app_state():
     """

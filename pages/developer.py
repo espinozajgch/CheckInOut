@@ -1,3 +1,4 @@
+
 import streamlit as st
 import bcrypt
 
@@ -5,9 +6,9 @@ import bcrypt
 #    INIT CONFIG & AUTH
 # ============================
 
-from i18n.i18n import t
-from auth_system.auth_core import init_app_state, validate_login
-import app_config.config as config
+from modules.i18n.i18n import t
+from modules.auth_system.auth_core import init_app_state, validate_login
+import modules.app_config.config as config
 
 config.init_config()
 init_app_state()
@@ -38,13 +39,11 @@ def hash_password(password: str) -> str:
     hashed = bcrypt.hashpw(password, bcrypt.gensalt())
     return hashed.decode("utf-8")
 
-
 def verify_password(password: str, hashed: str) -> bool:
     """
     Verifica si un password coincide con su hash.
     """
     return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
-
 
 # ============================
 #   UI DEL GESTOR

@@ -3,14 +3,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".
 
 import pandas as pd
 
-from ui.ui_app import (
+from modules.ui.ui_app import (
     _coerce_numeric,
     calc_trend,
     calc_delta,
     calc_metric_block,
     compute_player_wellness_means,
 )
-
 
 # ==============================
 # ✅ _coerce_numeric

@@ -1,17 +1,20 @@
-import streamlit as st
-import app_config.config as config
 
-from i18n.i18n import t
-from ui.ui_components import selection_header
-from reports.ui_individual import metricas, graficos_individuales, calcular_semaforo_riesgo, player_block_dux
-from db.db_records import get_records_db, load_jugadoras_db, load_competiciones_db
+import streamlit as st
+import modules.app_config.config as config
+
+from modules.i18n.i18n import t
+from modules.ui.ui_components import selection_header
+from modules.reports.ui_individual import metricas, graficos_individuales, calcular_semaforo_riesgo, player_block_dux
+from modules.db.db_records import get_records_db
+from modules.db.db_players import load_players_db
+from modules.db.db_competitions import load_competitions_db
 
 config.init_config()
 st.header(t("Análisis :red[individual]"), divider="red")
 
 # Load reference data
-jug_df = load_jugadoras_db()
-comp_df = load_competiciones_db()
+jug_df = load_players_db()
+comp_df = load_competitions_db()
 df = get_records_db()
 
 df_filtrado, jugadora, tipo, turno, start, end = selection_header(jug_df, comp_df, df, modo="reporte")
