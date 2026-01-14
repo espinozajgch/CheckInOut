@@ -34,5 +34,5 @@ metricas(df_filtrado, jugadora, turno, start, end)
 icon, desc, acwr, fatiga = calcular_semaforo_riesgo(df_filtrado)
 
 st.markdown(f"{t('**Riesgo actual:**')} {icon} {desc}")
-#st.dataframe(df_filtrado)
+
 graficos_individuales(df_filtrado)

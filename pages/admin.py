@@ -22,6 +22,7 @@ comp_df = load_competitions_db()
 wellness_df = get_records_db()
 tipo_ausencia_df = load_catalog_list_db("tipo_ausencia", as_df=True)
 ausencias_df = load_active_absences_db(activas=False)
+#st.dataframe(wellness_df)
 
 @st.dialog(t("Eliminar registros filtrados"), width="small")
 def dialog_eliminar_todos_filtrados(ids_todos):

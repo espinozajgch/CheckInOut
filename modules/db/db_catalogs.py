@@ -2,7 +2,7 @@ import pandas as pd
 import streamlit as st
 from modules.db.db_client import query
 
-@st.cache_data(ttl=360000)
+@st.cache_data(ttl=36000)
 def load_catalog_list_db(table_name, as_df=False):
     """
     Carga un catálogo desde la base de datos usando el cliente centralizado.

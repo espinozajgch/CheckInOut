@@ -266,14 +266,14 @@ def graficos_individuales(df: pd.DataFrame):
     df_player = df.copy().sort_values("fecha_sesion")
 
     #st.divider()
-    st.markdown(t("### **Gráficos individuales**"))
+    st.markdown(t("### **Gráficos**"))
 
     tabs = st.tabs([
-        t("Wellness (1-5)"),
+        t("Wellness"),
         t("Fatiga y ACWR"),
         t("RPE y UA"),
         t("Duración vs RPE"),
-        #"Riesgo de lesión"
+        t("Lesiones")
     ])
 
     with tabs[0]: 

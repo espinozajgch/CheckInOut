@@ -3,7 +3,6 @@ from modules.auth_system.auth_core import bootstrap_auth_from_cookie, init_app_s
 from modules.auth_system.auth_ui import login_view, menu
 import uuid
 
-
 def init_config():
     # Streamlit page config
     st.set_page_config(page_title="Dux Logroño - Wellness & RPE", page_icon="assets/images/logo_transparente.png", layout="wide")

@@ -12,9 +12,8 @@ def load_active_absences_db(activas: bool = True):
     base_sql = """
         SELECT 
             a.id,
-            a.id_jugadora,
-            f.nombre,
-            f.apellido,
+            a.id_jugadora as identificacion,
+            UPPER(CONCAT(f.nombre, ' ', f.apellido)) AS nombre_jugadora,
             f.competicion AS plantel,
             a.fecha_inicio,
             a.fecha_fin,
@@ -27,10 +26,11 @@ def load_active_absences_db(activas: bool = True):
             ON a.id_jugadora = f.identificacion
         LEFT JOIN tipo_ausencia ta
             ON a.motivo_id = ta.id
+        WHERE f.genero = 'F' AND f.id_estado = 1
     """
 
     if activas:
-        base_sql += " WHERE CURDATE() BETWEEN a.fecha_inicio AND a.fecha_fin"
+        base_sql += "AND CURDATE() BETWEEN a.fecha_inicio AND a.fecha_fin"
 
     rows = query(base_sql)
     df = pd.DataFrame(rows or [])

@@ -58,7 +58,7 @@ def menu():
             st.subheader(t("Administración :material/settings:"))
             st.page_link("pages/admin.py", label=t("Registros"), icon=":material/docs:")
         if st.session_state["auth"]["rol"].lower() in ["developer"]:
-            st.page_link("pages/developer.py", label=t("Usuarios"), icon=":material/user_attributes:")
+            st.page_link("pages/developer.py", label=t("Developer"), icon=":material/user_attributes:")
 
         if st.button(t("Cerrar Sesión"), type="tertiary", icon=":material/logout:"):
             logout()

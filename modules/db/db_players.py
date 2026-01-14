@@ -3,7 +3,7 @@ import streamlit as st
 from modules.db.db_client import query
 from modules.schema import MAP_POSICIONES
 
-@st.cache_data(ttl=360000)
+@st.cache_data(ttl=36000)
 def load_players_db() -> pd.DataFrame | None:
     """
     Carga jugadoras desde la base de datos (futbolistas + informacion_futbolistas).
@@ -28,7 +28,7 @@ def load_players_db() -> pd.DataFrame | None:
         FROM futbolistas f
         LEFT JOIN informacion_futbolistas i 
             ON f.identificacion = i.identificacion
-        WHERE f.genero = 'F'
+        WHERE f.genero = 'F' AND f.id_estado = 1
         ORDER BY f.nombre ASC;
     """
 
@@ -37,12 +37,13 @@ def load_players_db() -> pd.DataFrame | None:
         return pd.DataFrame()
 
     df = pd.DataFrame(rows)
-
+    #st.dataframe(df)
+    
     # Normalización
     df["nombre"] = df["nombre"].astype(str).str.strip().str.title()
     df["apellido"] = df["apellido"].astype(str).str.strip().str.title()
 
-    df["nombre_jugadora"] = (df["nombre"] + " " + df["apellido"]).str.strip()
+    df["nombre_jugadora"] = (df["nombre"] + " " + df["apellido"]).str.strip().str.upper()
 
     orden = [
         "id", "id_jugadora", "nombre_jugadora", "nombre", "apellido", "posicion", "plantel",

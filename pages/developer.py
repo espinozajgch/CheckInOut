@@ -22,8 +22,7 @@ if st.session_state["auth"]["rol"].lower() not in ["developer"]:
 #   PASSWORD MANAGER PAGE
 # ============================
 
-st.header(t(":red[Gestor de Contraseñas]"), divider="red")
-st.markdown("Herramienta para generar contraseñas encriptadas con **bcrypt**.")
+st.header(t(":red[Developer] Area"), divider="red")
 
 # ============================
 #   FUNCIONES DE SEGURIDAD
@@ -49,18 +48,31 @@ def verify_password(password: str, hashed: str) -> bool:
 #   UI DEL GESTOR
 # ============================
 
-st.subheader("🔑 Generar Password Encriptado (bcrypt)")
+tabs = st.tabs([
+        t(":material/user_attributes: Usuarios"),
+        t(":material/description: Utilidades"),
+    ])
 
-password_input = st.text_input("Introduce la contraseña:", type="password")
-generate_btn = st.button("Generar Hash", type="primary")
 
-if generate_btn:
-    if not password_input:
-        st.warning("⚠️ Debes escribir una contraseña primero.")
-    else:
-        hashed = hash_password(password_input)
 
-        st.success("Contraseña encriptada correctamente:")
-        st.code(hashed, language="text")
+with tabs[0]:
+    st.text("🔑 Generar Password Encriptado (bcrypt)")
+    st.markdown("Herramienta para generar contraseñas encriptadas con **bcrypt**.")
 
-        st.info("💡 Copia este hash y úsalo en tu base de datos.")
+    password_input = st.text_input("Introduce la contraseña:", type="password")
+    generate_btn = st.button("Generar Hash", type="primary")
+
+    if generate_btn:
+        if not password_input:
+            st.warning("⚠️ Debes escribir una contraseña primero.")
+        else:
+            hashed = hash_password(password_input)
+
+            st.success("Contraseña encriptada correctamente:")
+            st.code(hashed, language="text")
+
+            st.info("💡 Copia este hash y úsalo en tu base de datos.")
+with tabs[1]:
+    if st.button("🔄 Reiniciar caché"):
+        st.cache_data.clear()
+        st.success("Caché limpiada correctamente")

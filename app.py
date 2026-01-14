@@ -28,6 +28,7 @@ st.header(t("Resumen de :red[Wellness] [1er Equipo]"), divider="red")
 # 📦 CARGA DE DATOS
 # ============================================================
 df = get_records_db()
+#st.dataframe(df)
 
 if df.empty:
     st.warning(t("No hay registros de Wellness o RPE disponibles."))
@@ -35,6 +36,8 @@ if df.empty:
 
 df = data_format(df)
 jug_df = load_players_db()
+#st.dataframe(jug_df)
+ 
 #jug_df = jug_df[jug_df["plantel"] == "1FF"]
    
 comp_df = load_competitions_db()
@@ -106,13 +109,12 @@ with col1:
         index=3,
         key="aus_competicion",
     )
-
+  
 codigo_comp = competicion["codigo"]
 jug_df = jug_df[jug_df["plantel"] == codigo_comp]
 df_periodo = df_periodo[df_periodo["id_jugadora"].isin(jug_df["id_jugadora"])]
 
-#st.dataframe(jug_df, hide_index=True)
-      
+   
 tabs = st.tabs([
         t(":material/physical_therapy: Indicadores de bienestar y carga"),
         t(":material/description: Registros detallados"),
